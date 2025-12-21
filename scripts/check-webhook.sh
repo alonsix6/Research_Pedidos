@@ -1,8 +1,14 @@
 #!/bin/bash
 # Script para verificar y reconfigurar el webhook si es necesario
-# Ejecutar: ./scripts/check-webhook.sh
+# Ejecutar: TELEGRAM_BOT_TOKEN=your_token ./scripts/check-webhook.sh
 
-TELEGRAM_BOT_TOKEN="8417267252:AAHgYJxBjFgPNH2CPXyMu9N5t651600ZQ2Y"
+# Usar variable de entorno (no hardcodear tokens)
+if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+  echo "❌ Error: TELEGRAM_BOT_TOKEN no está configurado"
+  echo "   Ejecuta: TELEGRAM_BOT_TOKEN=tu_token ./scripts/check-webhook.sh"
+  exit 1
+fi
+
 WEBHOOK_URL="https://research-pedidos.netlify.app/.netlify/functions/telegram-webhook"
 
 echo "🔍 Verificando webhook de Telegram..."
