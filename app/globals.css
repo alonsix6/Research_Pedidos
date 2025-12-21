@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Variables del tema OP-1 */
+:root {
+  --op1-bg: #E8E8E8;
+  --op1-card: #FFFFFF;
+  --op1-text: #2A2A2A;
+  --op1-text-secondary: #666666;
+  --op1-accent: #FF4500;
+  --op1-success: #00CC66;
+  --op1-warning: #FFA500;
+  --op1-button: #3A3A3A;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+  background-color: var(--op1-bg);
+  color: var(--op1-text);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Botones estilo OP-1 */
+.btn-op1 {
+  @apply px-4 py-2 rounded-sm font-medium transition-all duration-100;
+  background-color: var(--op1-button);
+  color: white;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+}
+
+.btn-op1:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.2);
+}
+
+.btn-op1:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.btn-op1-accent {
+  @apply btn-op1;
+  background-color: var(--op1-accent);
+}
+
+.btn-op1-success {
+  @apply btn-op1;
+  background-color: var(--op1-success);
+}
+
+/* Cards estilo OP-1 */
+.card-op1 {
+  @apply bg-op1-card rounded-sm p-4;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Inputs estilo OP-1 */
+.input-op1 {
+  @apply w-full px-3 py-2 rounded-sm border border-gray-300 font-mono text-sm;
+  background-color: white;
+  transition: all 150ms ease;
+}
+
+.input-op1:focus {
+  outline: none;
+  border-color: var(--op1-accent);
+  box-shadow: 0 0 0 2px rgba(255, 69, 0, 0.1);
+}
+
+/* Labels estilo OP-1 */
+.label-op1 {
+  @apply block text-xs font-medium mb-1 uppercase tracking-wide;
+  color: var(--op1-text-secondary);
+}
+
+/* Badges de prioridad */
+.badge-urgent {
+  @apply inline-flex items-center px-2 py-1 rounded-sm text-xs font-medium;
+  background-color: var(--op1-accent);
+  color: white;
+}
+
+.badge-high {
+  @apply inline-flex items-center px-2 py-1 rounded-sm text-xs font-medium;
+  background-color: var(--op1-warning);
+  color: white;
+}
+
+.badge-normal {
+  @apply inline-flex items-center px-2 py-1 rounded-sm text-xs font-medium;
+  background-color: var(--op1-success);
+  color: white;
+}
+
+.badge-low {
+  @apply inline-flex items-center px-2 py-1 rounded-sm text-xs font-medium;
+  background-color: #999;
+  color: white;
+}
+
+/* Smooth transitions */
+.transition-op1 {
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Scrollbar personalizada */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--op1-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--op1-text-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--op1-text);
+}
