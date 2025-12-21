@@ -22,12 +22,16 @@
 En Netlify Dashboard → Site settings → Environment variables, agregar:
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://sgaofkncjgfcznjumasc.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-TELEGRAM_BOT_TOKEN=8417267252:AAHgYJxBjFgPNH2CPXyMu9N5t651600ZQ2Y
-TELEGRAM_CHAT_ID=-4991316359
+NEXT_PUBLIC_SUPABASE_URL=<tu-supabase-project-url>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<tu-supabase-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<tu-supabase-service-role-key>
+TELEGRAM_BOT_TOKEN=<tu-telegram-bot-token>
+TELEGRAM_CHAT_ID=<tu-telegram-chat-id>
 ```
+
+**Nota:** Obtén estos valores de:
+- Supabase: Project Settings → API → Project URL y API Keys
+- Telegram: @BotFather (bot token) y chat ID del grupo
 
 ## Paso 3: Deploy
 
@@ -40,17 +44,19 @@ TELEGRAM_CHAT_ID=-4991316359
 Una vez que el sitio esté desplegado, configurar el webhook:
 
 ```bash
-curl -X POST https://api.telegram.org/bot8417267252:AAHgYJxBjFgPNH2CPXyMu9N5t651600ZQ2Y/setWebhook \
+curl -X POST https://api.telegram.org/bot<TU_BOT_TOKEN>/setWebhook \
   -H "Content-Type: application/json" \
   -d '{"url": "https://TU-SITIO.netlify.app/.netlify/functions/telegram-webhook"}'
 ```
 
-Reemplazar `TU-SITIO` con tu URL de Netlify.
+Reemplazar:
+- `<TU_BOT_TOKEN>` con tu token de Telegram Bot
+- `TU-SITIO` con tu URL de Netlify
 
 ### Verificar Webhook
 
 ```bash
-curl https://api.telegram.org/bot8417267252:AAHgYJxBjFgPNH2CPXyMu9N5t651600ZQ2Y/getWebhookInfo
+curl https://api.telegram.org/bot<TU_BOT_TOKEN>/getWebhookInfo
 ```
 
 Deberías ver tu URL configurada.
