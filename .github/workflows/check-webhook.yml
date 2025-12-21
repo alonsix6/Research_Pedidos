@@ -1,0 +1,38 @@
+name: Check and Fix Webhook
+
+on:
+  schedule:
+    # Verificar cada 6 horas
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Permite ejecución manual
+
+jobs:
+  check-webhook:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check webhook status
+        id: check
+        run: |
+          WEBHOOK_INFO=$(curl -s "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/getWebhookInfo")
+          CURRENT_URL=$(echo "$WEBHOOK_INFO" | python3 -c "import sys, json; print(json.load(sys.stdin)['result'].get('url', ''))")
+
+          echo "current_url=$CURRENT_URL" >> $GITHUB_OUTPUT
+          echo "📍 Current webhook URL: $CURRENT_URL"
+
+      - name: Reconfigure webhook if needed
+        if: steps.check.outputs.current_url != 'https://research-pedidos.netlify.app/.netlify/functions/telegram-webhook'
+        run: |
+          echo "⚠️ Webhook is not configured correctly. Fixing..."
+
+          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/setWebhook" \
+            -H "Content-Type: application/json" \
+            -d '{"url": "https://research-pedidos.netlify.app/.netlify/functions/telegram-webhook"}'
+
+          echo "✅ Webhook reconfigured!"
+
+      - name: Verify webhook
+        run: |
+          WEBHOOK_INFO=$(curl -s "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/getWebhookInfo")
+          echo "📊 Final webhook info:"
+          echo "$WEBHOOK_INFO" | python3 -m json.tool
