@@ -333,7 +333,7 @@ export default function DashboardPage() {
             }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95, y: 1 }}
-            title={settings.soundEnabled ? 'Desactivar sonido (S)' : 'Activar sonido (S)'}
+            title={settings.soundEnabled ? 'Desactivar sonido (Alt+M)' : 'Activar sonido (Alt+M)'}
           >
             {settings.soundEnabled ? (
               <Volume2 size={12} className="text-[#00E5FF]" />
@@ -351,7 +351,7 @@ export default function DashboardPage() {
             }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95, y: 1 }}
-            title={settings.compactView ? 'Vista normal (C)' : 'Vista compacta (C)'}
+            title={settings.compactView ? 'Vista normal (Alt+C)' : 'Vista compacta (Alt+C)'}
           >
             {settings.compactView ? (
               <List size={12} className="text-[#FF4500]" />
@@ -363,14 +363,14 @@ export default function DashboardPage() {
 
         {/* Action buttons */}
         <div className="flex items-center gap-2">
-          <Button3D variant="black" onClick={handleToggleSearch} className="flex items-center gap-2" title="Buscar (/)">
+          <Button3D variant="black" onClick={handleToggleSearch} className="flex items-center gap-2" title="Buscar (Alt+K)">
             <Search size={14} />
           </Button3D>
-          <Button3D variant="orange" onClick={handleOpenNewModal} className="flex items-center gap-2" title="Nuevo pedido (N)">
+          <Button3D variant="orange" onClick={handleOpenNewModal} className="flex items-center gap-2" title="Nuevo pedido (Alt+N)">
             <Plus size={14} />
             NUEVO
           </Button3D>
-          <Button3D variant="black" onClick={handleRefresh} className="flex items-center gap-2" title="Refrescar (R)">
+          <Button3D variant="black" onClick={handleRefresh} className="flex items-center gap-2" title="Refrescar (Alt+R)">
             <RefreshCw size={14} />
           </Button3D>
         </div>
@@ -400,7 +400,7 @@ export default function DashboardPage() {
             }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95, y: 1 }}
-            title="Atajos de teclado (?)"
+            title="Atajos de teclado (Alt+/)"
           >
             <Keyboard size={12} className="text-gray-400" />
           </motion.button>
@@ -605,7 +605,7 @@ export default function DashboardPage() {
       >
         <div className="flex items-center gap-2 text-[10px]" style={{ color: '#555' }}>
           <Lightbulb size={12} />
-          <span>TIP: Presiona ? para ver los atajos de teclado</span>
+          <span>TIP: Presiona Alt+/ para ver los atajos de teclado</span>
         </div>
         <a
           href="https://t.me/Research_Pedidos_bot"

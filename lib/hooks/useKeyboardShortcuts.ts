@@ -22,7 +22,7 @@ export function useKeyboardShortcuts({
 }: UseKeyboardShortcutsOptions) {
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      // Don't trigger shortcuts when typing in inputs
+      // Don't trigger shortcuts when typing in inputs (except Escape)
       const target = event.target as HTMLElement;
       if (
         target.tagName === 'INPUT' ||
@@ -30,7 +30,6 @@ export function useKeyboardShortcuts({
         target.tagName === 'SELECT' ||
         target.isContentEditable
       ) {
-        // Allow Escape to work in inputs
         if (event.key !== 'Escape') {
           return;
         }
@@ -60,7 +59,7 @@ export function useKeyboardShortcuts({
   }, [enabled, handleKeyDown]);
 }
 
-// Common shortcuts for the dashboard
+// Dashboard shortcuts with Alt modifier to prevent accidental triggers
 export function createDashboardShortcuts({
   onNewRequest,
   onRefresh,
@@ -81,11 +80,13 @@ export function createDashboardShortcuts({
   return [
     {
       key: 'n',
+      alt: true,
       action: onNewRequest,
       description: 'Nuevo pedido',
     },
     {
       key: 'r',
+      alt: true,
       action: onRefresh,
       description: 'Refrescar datos',
     },
@@ -95,36 +96,39 @@ export function createDashboardShortcuts({
       description: 'Cerrar modal/dialogo',
     },
     {
-      key: '/',
+      key: 'k',
+      alt: true,
       action: onToggleSearch,
       description: 'Abrir busqueda',
     },
     {
-      key: '?',
-      shift: true,
+      key: '/',
+      alt: true,
       action: onShowHelp,
       description: 'Mostrar atajos',
     },
     {
       key: 'c',
+      alt: true,
       action: onToggleCompactView,
       description: 'Vista compacta',
     },
     {
-      key: 's',
+      key: 'm',
+      alt: true,
       action: onToggleSound,
-      description: 'Activar/desactivar sonido',
+      description: 'Silenciar/activar sonido',
     },
   ];
 }
 
-// Shortcut help data
+// Shortcut help data for display
 export const shortcutsList = [
-  { key: 'N', description: 'Nuevo pedido' },
-  { key: 'R', description: 'Refrescar datos' },
+  { key: 'Alt + N', description: 'Nuevo pedido' },
+  { key: 'Alt + R', description: 'Refrescar datos' },
   { key: 'Esc', description: 'Cerrar modal' },
-  { key: '/', description: 'Buscar' },
-  { key: '?', description: 'Mostrar atajos' },
-  { key: 'C', description: 'Vista compacta' },
-  { key: 'S', description: 'Sonido on/off' },
+  { key: 'Alt + K', description: 'Buscar' },
+  { key: 'Alt + /', description: 'Mostrar atajos' },
+  { key: 'Alt + C', description: 'Vista compacta' },
+  { key: 'Alt + M', description: 'Sonido on/off' },
 ];
