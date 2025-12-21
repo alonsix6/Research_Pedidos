@@ -28,6 +28,10 @@ export function useRealtimeRequests(
   const [isConnected, setIsConnected] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
+  // Store callbacks in ref to avoid re-subscribing on every render
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
   // Initial fetch
   const fetchRequests = useCallback(async () => {
     try {
@@ -49,7 +53,7 @@ export function useRealtimeRequests(
     }
   }, []);
 
-  // Setup realtime subscription
+  // Setup realtime subscription - only runs once on mount
   useEffect(() => {
     fetchRequests();
 
@@ -66,13 +70,12 @@ export function useRealtimeRequests(
         (payload) => {
           const newRequest = payload.new as Request;
           setRequests((prev) => {
-            // Insert in correct position based on deadline
             const newList = [...prev, newRequest].sort(
               (a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
             );
             return newList;
           });
-          options.onInsert?.(newRequest);
+          optionsRef.current.onInsert?.(newRequest);
         }
       )
       .on(
@@ -87,7 +90,7 @@ export function useRealtimeRequests(
           setRequests((prev) =>
             prev.map((r) => (r.id === updatedRequest.id ? updatedRequest : r))
           );
-          options.onUpdate?.(updatedRequest);
+          optionsRef.current.onUpdate?.(updatedRequest);
         }
       )
       .on(
@@ -100,7 +103,7 @@ export function useRealtimeRequests(
         (payload) => {
           const deletedId = (payload.old as { id: string }).id;
           setRequests((prev) => prev.filter((r) => r.id !== deletedId));
-          options.onDelete?.(deletedId);
+          optionsRef.current.onDelete?.(deletedId);
         }
       )
       .subscribe((status) => {
@@ -115,7 +118,7 @@ export function useRealtimeRequests(
         supabase.removeChannel(channelRef.current);
       }
     };
-  }, [fetchRequests, options.onInsert, options.onUpdate, options.onDelete]);
+  }, [fetchRequests]);
 
   return {
     requests,
