@@ -20,44 +20,63 @@
 }
 
 /* ========================================
+   SVG NOISE FILTER PARA TEXTURAS
+   ======================================== */
+.noise-texture {
+  position: relative;
+}
+
+.noise-texture::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.04;
+  pointer-events: none;
+  border-radius: inherit;
+  mix-blend-mode: overlay;
+}
+
+/* ========================================
    TEENAGE ENGINEERING THEME VARIABLES
    ======================================== */
 :root {
-  /* Cuerpo del dispositivo */
-  --te-body: #C8C8C8;
-  --te-body-dark: #A8A8A8;
-  --te-body-light: #E0E0E0;
-  --te-body-shadow: #888888;
+  /* Cuerpo del dispositivo - Más realista */
+  --te-body: #D4D4D4;
+  --te-body-dark: #B8B8B8;
+  --te-body-light: #EDEDED;
+  --te-body-shadow: #9A9A9A;
+  --te-body-highlight: #FFFFFF;
 
   /* Pantalla LCD */
-  --te-screen-bg: #1A1A1A;
-  --te-screen-border: #0D0D0D;
-  --te-screen-glow: rgba(0, 212, 255, 0.05);
+  --te-screen-bg: #131313;
+  --te-screen-border: #0A0A0A;
+  --te-screen-glow: rgba(0, 212, 255, 0.03);
 
-  /* Colores de acento */
+  /* Colores de acento - Ajustados para mayor realismo */
   --te-orange: #FF4500;
-  --te-red: #CE2021;
-  --te-green: #1AA167;
-  --te-blue: #1270B8;
-  --te-yellow: #FFC003;
-  --te-cyan: #00D4FF;
+  --te-orange-light: #FF6B3D;
+  --te-orange-dark: #CC3700;
+  --te-red: #E53935;
+  --te-red-dark: #B71C1C;
+  --te-green: #00C853;
+  --te-green-dark: #00962C;
+  --te-blue: #2196F3;
+  --te-yellow: #FFD600;
+  --te-cyan: #00E5FF;
 
-  /* Botones */
-  --te-button-black: #2A2A2A;
-  --te-button-black-light: #3A3A3A;
-  --te-button-white: #F0F0F0;
-  --te-button-grey: #4A4A4A;
+  /* Botones - Rubber/Silicone look */
+  --te-button-black: #1F1F1F;
+  --te-button-black-light: #2D2D2D;
+  --te-button-black-surface: #262626;
+  --te-button-white: #F5F5F5;
+  --te-button-grey: #3D3D3D;
 
   /* Texto */
   --te-text-dark: #1A1A1A;
-  --te-text-light: #E5E5E5;
-  --te-text-muted: #666666;
+  --te-text-light: #E8E8E8;
+  --te-text-muted: #777777;
   --te-label: #FF4500;
-
-  /* Sombras */
-  --te-shadow-button: 0 4px 0 #1A1A1A, 0 6px 10px rgba(0,0,0,0.25);
-  --te-shadow-button-pressed: 0 1px 0 #1A1A1A, 0 2px 4px rgba(0,0,0,0.2);
-  --te-shadow-device: 0 20px 60px rgba(0,0,0,0.3), 0 8px 20px rgba(0,0,0,0.2);
 }
 
 * {
@@ -78,30 +97,43 @@ body {
 }
 
 /* ========================================
-   TEXTURAS METALICAS
+   TEXTURAS METALICAS MEJORADAS
    ======================================== */
 .metallic-surface {
-  background: linear-gradient(
-    180deg,
-    var(--te-body-light) 0%,
-    var(--te-body) 15%,
-    var(--te-body-dark) 85%,
-    var(--te-body-shadow) 100%
-  );
+  background:
+    /* Highlight superior sutil */
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.4) 0%,
+      rgba(255,255,255,0) 3%
+    ),
+    /* Gradiente principal del metal */
+    linear-gradient(
+      180deg,
+      var(--te-body-light) 0%,
+      var(--te-body) 8%,
+      var(--te-body) 45%,
+      var(--te-body-dark) 55%,
+      var(--te-body-dark) 92%,
+      var(--te-body-shadow) 100%
+    );
+  position: relative;
 }
 
-.metallic-surface-horizontal {
-  background: linear-gradient(
-    135deg,
-    var(--te-body-light) 0%,
-    var(--te-body) 25%,
-    var(--te-body-dark) 75%,
-    var(--te-body-shadow) 100%
-  );
+/* Textura de grano metálico */
+.metallic-surface::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.025;
+  pointer-events: none;
+  border-radius: inherit;
+  mix-blend-mode: multiply;
 }
 
 /* ========================================
-   BOTONES 3D FISICOS
+   BOTONES 3D ESTILO RUBBER/SILICONE
    ======================================== */
 .btn-3d {
   position: relative;
@@ -112,138 +144,264 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border: none;
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: pointer;
-  transition: all 0.05s ease;
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
   user-select: none;
 }
 
 .btn-3d-black {
-  background: linear-gradient(180deg, var(--te-button-black-light) 0%, var(--te-button-black) 100%);
+  background:
+    /* Reflejo superior muy sutil */
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.08) 0%,
+      rgba(255,255,255,0) 40%
+    ),
+    /* Gradiente principal rubber */
+    linear-gradient(
+      180deg,
+      var(--te-button-black-light) 0%,
+      var(--te-button-black-surface) 15%,
+      var(--te-button-black-surface) 85%,
+      var(--te-button-black) 100%
+    );
   color: white;
+  /* Sombras por capas: contact, key, ambient */
   box-shadow:
-    0 4px 0 #1A1A1A,
-    0 6px 10px rgba(0,0,0,0.3),
-    inset 0 1px 0 rgba(255,255,255,0.1);
+    /* Contact shadow - muy cerca */
+    0 1px 1px rgba(0,0,0,0.4),
+    /* Key shadow - sombra principal */
+    0 4px 0 #0F0F0F,
+    /* Ambient shadow - suave y difusa */
+    0 6px 16px rgba(0,0,0,0.35),
+    /* Inner highlight superior */
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    /* Inner shadow inferior para profundidad */
+    inset 0 -1px 0 rgba(0,0,0,0.2);
 }
 
 .btn-3d-black:hover {
-  background: linear-gradient(180deg, #444444 0%, #333333 100%);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.1) 0%,
+      rgba(255,255,255,0) 40%
+    ),
+    linear-gradient(
+      180deg,
+      #363636 0%,
+      #2E2E2E 15%,
+      #2E2E2E 85%,
+      #252525 100%
+    );
 }
 
 .btn-3d-black:active {
   transform: translateY(3px);
   box-shadow:
-    0 1px 0 #1A1A1A,
-    0 2px 4px rgba(0,0,0,0.2),
-    inset 0 2px 4px rgba(0,0,0,0.3);
+    0 1px 0 #0F0F0F,
+    0 2px 6px rgba(0,0,0,0.3),
+    inset 0 2px 6px rgba(0,0,0,0.5),
+    inset 0 -1px 0 rgba(255,255,255,0.03);
 }
 
 .btn-3d-orange {
-  background: linear-gradient(180deg, #FF5722 0%, var(--te-orange) 100%);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.2) 0%,
+      rgba(255,255,255,0) 40%
+    ),
+    linear-gradient(
+      180deg,
+      var(--te-orange-light) 0%,
+      var(--te-orange) 15%,
+      var(--te-orange) 85%,
+      var(--te-orange-dark) 100%
+    );
   color: white;
   box-shadow:
-    0 4px 0 #CC3700,
-    0 6px 10px rgba(0,0,0,0.3),
-    inset 0 1px 0 rgba(255,255,255,0.2);
+    0 1px 1px rgba(0,0,0,0.3),
+    0 4px 0 var(--te-orange-dark),
+    0 6px 16px rgba(255,69,0,0.25),
+    inset 0 1px 0 rgba(255,255,255,0.15),
+    inset 0 -1px 0 rgba(0,0,0,0.15);
 }
 
 .btn-3d-orange:hover {
-  background: linear-gradient(180deg, #FF6A3D 0%, #FF5722 100%);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.25) 0%,
+      rgba(255,255,255,0) 40%
+    ),
+    linear-gradient(
+      180deg,
+      #FF7A4D 0%,
+      #FF5722 15%,
+      #FF5722 85%,
+      var(--te-orange-dark) 100%
+    );
 }
 
 .btn-3d-orange:active {
   transform: translateY(3px);
   box-shadow:
-    0 1px 0 #CC3700,
-    0 2px 4px rgba(0,0,0,0.2),
-    inset 0 2px 4px rgba(0,0,0,0.3);
+    0 1px 0 var(--te-orange-dark),
+    0 2px 6px rgba(255,69,0,0.3),
+    inset 0 2px 6px rgba(0,0,0,0.3),
+    inset 0 -1px 0 rgba(255,255,255,0.1);
 }
 
 .btn-3d-white {
-  background: linear-gradient(180deg, #FFFFFF 0%, var(--te-button-white) 100%);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.9) 0%,
+      rgba(255,255,255,0) 50%
+    ),
+    linear-gradient(
+      180deg,
+      #FFFFFF 0%,
+      #F8F8F8 15%,
+      #F0F0F0 85%,
+      #E8E8E8 100%
+    );
   color: var(--te-text-dark);
   box-shadow:
+    0 1px 1px rgba(0,0,0,0.15),
     0 4px 0 #CCCCCC,
-    0 6px 10px rgba(0,0,0,0.2),
-    inset 0 1px 0 rgba(255,255,255,0.8);
+    0 6px 16px rgba(0,0,0,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.8),
+    inset 0 -1px 0 rgba(0,0,0,0.05);
 }
 
 .btn-3d-white:hover {
-  background: linear-gradient(180deg, #FFFFFF 0%, #F8F8F8 100%);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,1) 0%,
+      rgba(255,255,255,0) 50%
+    ),
+    linear-gradient(
+      180deg,
+      #FFFFFF 0%,
+      #FAFAFA 15%,
+      #F5F5F5 85%,
+      #EDEDED 100%
+    );
 }
 
 .btn-3d-white:active {
   transform: translateY(3px);
   box-shadow:
     0 1px 0 #CCCCCC,
-    0 2px 4px rgba(0,0,0,0.15),
-    inset 0 2px 4px rgba(0,0,0,0.1);
+    0 2px 6px rgba(0,0,0,0.12),
+    inset 0 2px 4px rgba(0,0,0,0.08),
+    inset 0 -1px 0 rgba(255,255,255,0.5);
 }
 
 .btn-3d-grey {
-  background: linear-gradient(180deg, #5A5A5A 0%, var(--te-button-grey) 100%);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.08) 0%,
+      rgba(255,255,255,0) 40%
+    ),
+    linear-gradient(
+      180deg,
+      #5A5A5A 0%,
+      #4D4D4D 15%,
+      #454545 85%,
+      #3A3A3A 100%
+    );
   color: white;
   box-shadow:
+    0 1px 1px rgba(0,0,0,0.35),
     0 4px 0 #2A2A2A,
-    0 6px 10px rgba(0,0,0,0.3),
-    inset 0 1px 0 rgba(255,255,255,0.1);
+    0 6px 16px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 -1px 0 rgba(0,0,0,0.15);
 }
 
 .btn-3d-grey:active {
   transform: translateY(3px);
   box-shadow:
     0 1px 0 #2A2A2A,
-    0 2px 4px rgba(0,0,0,0.2),
-    inset 0 2px 4px rgba(0,0,0,0.3);
+    0 2px 6px rgba(0,0,0,0.25),
+    inset 0 2px 6px rgba(0,0,0,0.4),
+    inset 0 -1px 0 rgba(255,255,255,0.04);
 }
 
 .btn-3d-green {
-  background: linear-gradient(180deg, #1FBF7A 0%, var(--te-green) 100%);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.2) 0%,
+      rgba(255,255,255,0) 40%
+    ),
+    linear-gradient(
+      180deg,
+      #2EE67A 0%,
+      var(--te-green) 15%,
+      var(--te-green) 85%,
+      var(--te-green-dark) 100%
+    );
   color: white;
   box-shadow:
-    0 4px 0 #147A4D,
-    0 6px 10px rgba(0,0,0,0.3),
-    inset 0 1px 0 rgba(255,255,255,0.2);
+    0 1px 1px rgba(0,0,0,0.25),
+    0 4px 0 var(--te-green-dark),
+    0 6px 16px rgba(0,200,83,0.2),
+    inset 0 1px 0 rgba(255,255,255,0.15),
+    inset 0 -1px 0 rgba(0,0,0,0.1);
 }
 
 .btn-3d-green:active {
   transform: translateY(3px);
   box-shadow:
-    0 1px 0 #147A4D,
-    0 2px 4px rgba(0,0,0,0.2),
-    inset 0 2px 4px rgba(0,0,0,0.3);
+    0 1px 0 var(--te-green-dark),
+    0 2px 6px rgba(0,200,83,0.25),
+    inset 0 2px 6px rgba(0,0,0,0.25),
+    inset 0 -1px 0 rgba(255,255,255,0.08);
 }
 
 /* ========================================
-   PANTALLA LCD
+   PANTALLA LCD MEJORADA
    ======================================== */
 .lcd-screen {
   background: var(--te-screen-bg);
   border: 4px solid var(--te-screen-border);
-  border-radius: 6px;
+  border-radius: 8px;
+  /* Sombras por capas para profundidad */
   box-shadow:
-    inset 0 0 30px rgba(0,0,0,0.5),
-    inset 0 0 4px var(--te-screen-glow),
-    0 2px 8px rgba(0,0,0,0.4);
+    /* Sombra interna profunda */
+    inset 0 0 40px rgba(0,0,0,0.6),
+    /* Glow muy sutil del LCD */
+    inset 0 0 2px var(--te-screen-glow),
+    /* Ambient occlusion alrededor */
+    0 1px 0 rgba(255,255,255,0.1),
+    0 4px 12px rgba(0,0,0,0.5);
   position: relative;
   overflow: hidden;
 }
 
+/* Reflejo superior del cristal */
 .lcd-screen::before {
   content: '';
   position: absolute;
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(255,255,255,0.03) 0%,
-    transparent 50%,
-    rgba(0,0,0,0.1) 100%
+    rgba(255,255,255,0.04) 0%,
+    rgba(255,255,255,0.01) 20%,
+    transparent 40%,
+    rgba(0,0,0,0.08) 100%
   );
   pointer-events: none;
 }
 
-/* Scanlines sutiles */
+/* Scanlines más sutiles */
 .lcd-scanlines::after {
   content: '';
   position: absolute;
@@ -252,158 +410,249 @@ body {
     0deg,
     transparent 0px,
     transparent 2px,
-    rgba(0,0,0,0.15) 2px,
-    rgba(0,0,0,0.15) 4px
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
   );
   pointer-events: none;
-  opacity: 0.3;
+  opacity: 0.5;
 }
 
-/* Display 7 segmentos */
+/* Display 7 segmentos mejorado */
 .lcd-number {
   font-family: 'DSEG7', monospace;
   color: var(--te-cyan);
-  text-shadow: 0 0 10px var(--te-cyan), 0 0 20px rgba(0, 212, 255, 0.3);
+  text-shadow:
+    0 0 8px var(--te-cyan),
+    0 0 16px rgba(0, 229, 255, 0.4),
+    0 0 32px rgba(0, 229, 255, 0.2);
   letter-spacing: 2px;
 }
 
 .lcd-number-orange {
   color: var(--te-orange);
-  text-shadow: 0 0 10px var(--te-orange), 0 0 20px rgba(255, 69, 0, 0.3);
+  text-shadow:
+    0 0 8px var(--te-orange),
+    0 0 16px rgba(255, 69, 0, 0.4),
+    0 0 32px rgba(255, 69, 0, 0.2);
 }
 
 .lcd-number-green {
   color: var(--te-green);
-  text-shadow: 0 0 10px var(--te-green), 0 0 20px rgba(26, 161, 103, 0.3);
+  text-shadow:
+    0 0 8px var(--te-green),
+    0 0 16px rgba(0, 200, 83, 0.4),
+    0 0 32px rgba(0, 200, 83, 0.2);
 }
 
 .lcd-number-dim {
-  opacity: 0.15;
+  opacity: 0.12;
 }
 
 /* ========================================
-   SPEAKER GRILLE
+   SPEAKER GRILLE MEJORADO
    ======================================== */
 .speaker-grille {
-  background-color: #1A1A1A;
-  background-image: radial-gradient(circle at center, #2A2A2A 30%, transparent 30%);
-  background-size: 6px 6px;
+  background-color: #0F0F0F;
+  background-image:
+    /* Patrón de agujeros */
+    radial-gradient(circle at center, #1A1A1A 35%, transparent 35%);
+  background-size: 5px 5px;
   border-radius: 4px;
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.6);
+  /* Profundidad con múltiples sombras */
+  box-shadow:
+    inset 0 3px 10px rgba(0,0,0,0.8),
+    inset 0 1px 2px rgba(0,0,0,0.5),
+    0 1px 0 rgba(255,255,255,0.1);
 }
 
 /* ========================================
-   KNOBS ROTATIVOS
+   KNOBS ROTATIVOS ULTRA REALISTAS
    ======================================== */
 .knob {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: radial-gradient(
-    circle at 35% 35%,
-    #F8F8F8 0%,
-    #E0E0E0 30%,
-    #C0C0C0 70%,
-    #A0A0A0 100%
-  );
+  /* Múltiples capas de gradientes para simular iluminación realista */
+  background:
+    /* Highlight especular principal */
+    radial-gradient(
+      ellipse 60% 40% at 35% 25%,
+      rgba(255,255,255,0.9) 0%,
+      rgba(255,255,255,0.4) 20%,
+      transparent 50%
+    ),
+    /* Segundo highlight más suave */
+    radial-gradient(
+      ellipse 80% 50% at 40% 30%,
+      rgba(255,255,255,0.3) 0%,
+      transparent 50%
+    ),
+    /* Reflexión de luz ambiental inferior */
+    radial-gradient(
+      ellipse 100% 40% at 50% 110%,
+      rgba(255,255,255,0.15) 0%,
+      transparent 60%
+    ),
+    /* Gradiente base del metal */
+    radial-gradient(
+      circle at 50% 50%,
+      #F5F5F5 0%,
+      #E8E8E8 30%,
+      #CCCCCC 60%,
+      #AAAAAA 80%,
+      #909090 100%
+    );
+  /* Sombras por capas */
   box-shadow:
-    0 4px 12px rgba(0,0,0,0.4),
-    inset 0 2px 4px rgba(255,255,255,0.6),
-    inset 0 -2px 4px rgba(0,0,0,0.2);
+    /* Contact shadow */
+    0 1px 2px rgba(0,0,0,0.3),
+    /* Key shadow */
+    0 4px 8px rgba(0,0,0,0.35),
+    /* Ambient shadow */
+    0 8px 20px rgba(0,0,0,0.2),
+    /* Borde superior iluminado */
+    inset 0 1px 2px rgba(255,255,255,0.6),
+    /* Borde inferior sombreado */
+    inset 0 -2px 4px rgba(0,0,0,0.15);
   position: relative;
   cursor: pointer;
+  transition: transform 0.1s ease;
 }
 
+/* Indicador del knob */
 .knob::after {
   content: '';
   position: absolute;
   width: 4px;
-  height: 14px;
-  background: var(--te-text-dark);
+  height: 12px;
+  background: linear-gradient(180deg, #3A3A3A 0%, #1A1A1A 100%);
   top: 8px;
   left: 50%;
   transform: translateX(-50%);
   border-radius: 2px;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.1);
 }
 
 .knob-orange {
-  background: radial-gradient(
-    circle at 35% 35%,
-    #FF7043 0%,
-    var(--te-orange) 50%,
-    #CC3700 100%
-  );
+  background:
+    radial-gradient(
+      ellipse 60% 40% at 35% 25%,
+      rgba(255,255,255,0.6) 0%,
+      rgba(255,200,150,0.3) 30%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 80% 50% at 40% 30%,
+      rgba(255,150,100,0.3) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 100% 40% at 50% 110%,
+      rgba(255,100,50,0.2) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      #FF7043 0%,
+      #FF5722 30%,
+      var(--te-orange) 60%,
+      #E64A19 80%,
+      #BF360C 100%
+    );
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.3),
+    0 4px 8px rgba(255,69,0,0.3),
+    0 8px 20px rgba(255,69,0,0.15),
+    inset 0 1px 2px rgba(255,255,255,0.4),
+    inset 0 -2px 4px rgba(0,0,0,0.2);
 }
 
 .knob-orange::after {
-  background: white;
+  background: linear-gradient(180deg, #FFFFFF 0%, #F0F0F0 100%);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
 }
 
 .knob-small {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
 }
 
 .knob-small::after {
   width: 3px;
-  height: 10px;
-  top: 5px;
+  height: 9px;
+  top: 6px;
 }
 
 /* ========================================
-   LED INDICATORS
+   LED INDICATORS ULTRA REALISTAS
    ======================================== */
 .led {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+  position: relative;
 }
 
 .led-off {
-  background: #333;
+  background: radial-gradient(circle at 40% 40%, #404040 0%, #252525 100%);
+  box-shadow:
+    inset 0 1px 2px rgba(0,0,0,0.6),
+    0 0 1px rgba(0,0,0,0.5);
 }
 
 .led-red {
-  background: var(--te-red);
+  background: radial-gradient(circle at 40% 40%, #FF6B6B 0%, var(--te-red) 50%, var(--te-red-dark) 100%);
   box-shadow:
-    0 0 6px var(--te-red),
-    0 0 12px rgba(206, 32, 33, 0.5),
-    inset 0 1px 2px rgba(255,255,255,0.3);
+    /* Inner highlight */
+    inset 0 1px 2px rgba(255,255,255,0.4),
+    /* Glow interno */
+    0 0 3px var(--te-red),
+    /* Glow medio */
+    0 0 8px var(--te-red),
+    /* Glow externo suave */
+    0 0 16px rgba(229,57,53,0.5),
+    /* Glow ambiental */
+    0 0 30px rgba(229,57,53,0.2);
 }
 
 .led-green {
-  background: var(--te-green);
+  background: radial-gradient(circle at 40% 40%, #69F0AE 0%, var(--te-green) 50%, var(--te-green-dark) 100%);
   box-shadow:
-    0 0 6px var(--te-green),
-    0 0 12px rgba(26, 161, 103, 0.5),
-    inset 0 1px 2px rgba(255,255,255,0.3);
+    inset 0 1px 2px rgba(255,255,255,0.4),
+    0 0 3px var(--te-green),
+    0 0 8px var(--te-green),
+    0 0 16px rgba(0,200,83,0.5),
+    0 0 30px rgba(0,200,83,0.2);
 }
 
 .led-orange {
-  background: var(--te-orange);
+  background: radial-gradient(circle at 40% 40%, #FFAB91 0%, var(--te-orange) 50%, var(--te-orange-dark) 100%);
   box-shadow:
-    0 0 6px var(--te-orange),
-    0 0 12px rgba(255, 69, 0, 0.5),
-    inset 0 1px 2px rgba(255,255,255,0.3);
+    inset 0 1px 2px rgba(255,255,255,0.4),
+    0 0 3px var(--te-orange),
+    0 0 8px var(--te-orange),
+    0 0 16px rgba(255,69,0,0.5),
+    0 0 30px rgba(255,69,0,0.2);
 }
 
 .led-blue {
-  background: var(--te-blue);
+  background: radial-gradient(circle at 40% 40%, #64B5F6 0%, var(--te-blue) 50%, #1565C0 100%);
   box-shadow:
-    0 0 6px var(--te-blue),
-    0 0 12px rgba(18, 112, 184, 0.5),
-    inset 0 1px 2px rgba(255,255,255,0.3);
+    inset 0 1px 2px rgba(255,255,255,0.4),
+    0 0 3px var(--te-blue),
+    0 0 8px var(--te-blue),
+    0 0 16px rgba(33,150,243,0.5),
+    0 0 30px rgba(33,150,243,0.2);
 }
 
 /* ========================================
-   LABELS INDUSTRIALES
+   LABELS INDUSTRIALES MEJORADOS
    ======================================== */
 .label-industrial {
-  font-size: 9px;
-  font-weight: 600;
+  font-size: 8px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
   color: var(--te-text-dark);
 }
 
@@ -413,66 +662,160 @@ body {
 
 .label-screen {
   color: var(--te-text-light);
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.5px;
+  opacity: 0.9;
 }
 
 /* ========================================
-   CARDS COMO PADS
+   CARDS COMO PADS - ESTILO RUBBER MATE
    ======================================== */
 .pad-card {
-  background: linear-gradient(180deg, #3A3A3A 0%, #2A2A2A 100%);
-  border-radius: 4px;
+  /* Gradiente que simula superficie de goma */
+  background:
+    /* Textura muy sutil */
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.04) 0%,
+      rgba(255,255,255,0) 10%
+    ),
+    linear-gradient(
+      180deg,
+      #3A3A3A 0%,
+      #323232 8%,
+      #2C2C2C 50%,
+      #262626 92%,
+      #1F1F1F 100%
+    );
+  border-radius: 6px;
   padding: 12px;
+  /* Sombras por capas para ambient occlusion */
   box-shadow:
-    0 4px 0 #1A1A1A,
-    0 6px 12px rgba(0,0,0,0.3),
-    inset 0 1px 0 rgba(255,255,255,0.08);
-  transition: all 0.05s ease;
+    /* Contact shadow */
+    0 1px 1px rgba(0,0,0,0.4),
+    /* Key shadow */
+    0 4px 0 #141414,
+    /* Ambient shadow */
+    0 6px 20px rgba(0,0,0,0.4),
+    /* Inner highlight muy sutil */
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    /* Inner shadow inferior */
+    inset 0 -1px 0 rgba(0,0,0,0.2);
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
   cursor: pointer;
   position: relative;
+  overflow: hidden;
+}
+
+/* Textura de grano para efecto rubber */
+.pad-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  border-radius: inherit;
+  mix-blend-mode: overlay;
 }
 
 .pad-card:hover {
-  background: linear-gradient(180deg, #444444 0%, #333333 100%);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.06) 0%,
+      rgba(255,255,255,0) 15%
+    ),
+    linear-gradient(
+      180deg,
+      #444444 0%,
+      #3A3A3A 8%,
+      #333333 50%,
+      #2C2C2C 92%,
+      #252525 100%
+    );
 }
 
 .pad-card:active {
   transform: translateY(3px);
   box-shadow:
-    0 1px 0 #1A1A1A,
-    0 2px 4px rgba(0,0,0,0.2),
-    inset 0 2px 6px rgba(0,0,0,0.4);
+    0 1px 0 #141414,
+    0 2px 8px rgba(0,0,0,0.35),
+    inset 0 2px 8px rgba(0,0,0,0.5),
+    inset 0 -1px 0 rgba(255,255,255,0.03);
 }
 
 .pad-card-completed {
-  background: linear-gradient(180deg, #2A3A2A 0%, #1A2A1A 100%);
-  border-radius: 4px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.03) 0%,
+      rgba(255,255,255,0) 10%
+    ),
+    linear-gradient(
+      180deg,
+      #2D3D2D 0%,
+      #283828 8%,
+      #233323 50%,
+      #1E2E1E 92%,
+      #192919 100%
+    );
+  border-radius: 6px;
   padding: 12px;
   box-shadow:
-    0 4px 0 #1A2A1A,
-    0 6px 12px rgba(0,0,0,0.3),
-    inset 0 1px 0 rgba(255,255,255,0.05);
+    0 1px 1px rgba(0,0,0,0.35),
+    0 4px 0 #0F1A0F,
+    0 6px 20px rgba(0,0,0,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.04),
+    inset 0 -1px 0 rgba(0,0,0,0.15);
   position: relative;
-  opacity: 0.85;
+  overflow: hidden;
+  opacity: 0.9;
+}
+
+.pad-card-completed::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  border-radius: inherit;
+  mix-blend-mode: overlay;
 }
 
 .pad-card-completed:hover {
-  background: linear-gradient(180deg, #2D402D 0%, #1D2D1D 100%);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.04) 0%,
+      rgba(255,255,255,0) 15%
+    ),
+    linear-gradient(
+      180deg,
+      #334433 0%,
+      #2D3D2D 8%,
+      #283828 50%,
+      #233323 92%,
+      #1E2E1E 100%
+    );
 }
 
 /* ========================================
    INPUTS ESTILO LCD
    ======================================== */
 .input-lcd {
-  background: #0A0A0A;
+  background: #0D0D0D;
   border: 2px solid #1A1A1A;
   border-radius: 4px;
   padding: 10px 12px;
   color: var(--te-cyan);
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+  box-shadow:
+    inset 0 2px 8px rgba(0,0,0,0.6),
+    inset 0 0 2px rgba(0,0,0,0.4),
+    0 1px 0 rgba(255,255,255,0.05);
   transition: all 0.15s ease;
 }
 
@@ -480,12 +823,14 @@ body {
   outline: none;
   border-color: var(--te-orange);
   box-shadow:
-    inset 0 2px 8px rgba(0,0,0,0.5),
-    0 0 0 2px rgba(255, 69, 0, 0.2);
+    inset 0 2px 8px rgba(0,0,0,0.6),
+    inset 0 0 2px rgba(0,0,0,0.4),
+    0 0 0 3px rgba(255, 69, 0, 0.15),
+    0 0 12px rgba(255, 69, 0, 0.1);
 }
 
 .input-lcd::placeholder {
-  color: #444;
+  color: #3A3A3A;
 }
 
 /* ========================================
@@ -499,21 +844,23 @@ body {
   text-shadow: 0 0 10px currentColor;
 }
 
-/* Scrollbar personalizada */
+/* Scrollbar personalizada mejorada */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1A1A1A;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #4A4A4A;
+  background: #151515;
   border-radius: 4px;
 }
 
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #4A4A4A 0%, #3A3A3A 100%);
+  border-radius: 4px;
+  border: 1px solid #2A2A2A;
+}
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #5A5A5A;
+  background: linear-gradient(180deg, #5A5A5A 0%, #4A4A4A 100%);
 }
