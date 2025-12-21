@@ -1,5 +1,5 @@
 import { Handler } from '@netlify/functions';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '../../lib/supabase';
 import {
   sendMessage,
   getHelpMessage,
@@ -9,17 +9,8 @@ import {
 import { Request } from '../../lib/types';
 import { differenceInDays, parseISO } from 'date-fns';
 
-// Cliente de Supabase con service role
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-);
+// Cliente de Supabase con service role (lazy-initialized)
+const getSupabase = () => getSupabaseAdmin();
 
 export const handler: Handler = async (event) => {
   // Solo aceptar POST requests
@@ -51,7 +42,7 @@ export const handler: Handler = async (event) => {
     console.log(`Message from ${username} (${userId}): ${text}`);
 
     // Verificar que el usuario esté autorizado
-    const user = await getUserByTelegramId(userId.toString(), supabase);
+    const user = await getUserByTelegramId(userId.toString(), getSupabase());
     if (!user) {
       await sendMessage(
         chatId,
@@ -119,7 +110,7 @@ export const handler: Handler = async (event) => {
  * Comando /ver - Muestra todos los pedidos activos
  */
 async function handleVerCommand(chatId: number) {
-  const { data: requests, error } = await supabase
+  const { data: requests, error } = await getSupabase()
     .from('requests')
     .select('*')
     .in('status', ['pending', 'in_progress'])
@@ -144,7 +135,7 @@ async function handleVerCommand(chatId: number) {
  * Comando /mios - Muestra pedidos asignados al usuario
  */
 async function handleMiosCommand(chatId: number, userId: string) {
-  const { data: requests, error } = await supabase
+  const { data: requests, error } = await getSupabase()
     .from('requests')
     .select('*')
     .eq('assigned_to', userId)
@@ -170,7 +161,7 @@ async function handleMiosCommand(chatId: number, userId: string) {
  * Comando /hoy - Pedidos que vencen hoy
  */
 async function handleHoyCommand(chatId: number) {
-  const { data: requests, error } = await supabase
+  const { data: requests, error } = await getSupabase()
     .from('requests')
     .select('*')
     .in('status', ['pending', 'in_progress']);
@@ -205,7 +196,7 @@ async function handleHoyCommand(chatId: number) {
  * Comando /semana - Pedidos de esta semana
  */
 async function handleSemanaCommand(chatId: number) {
-  const { data: requests, error } = await supabase
+  const { data: requests, error } = await getSupabase()
     .from('requests')
     .select('*')
     .in('status', ['pending', 'in_progress']);
@@ -240,7 +231,7 @@ async function handleSemanaCommand(chatId: number) {
  * Comando /urgente - Pedidos urgentes (< 2 días)
  */
 async function handleUrgenteCommand(chatId: number) {
-  const { data: requests, error } = await supabase
+  const { data: requests, error } = await getSupabase()
     .from('requests')
     .select('*')
     .in('status', ['pending', 'in_progress']);
