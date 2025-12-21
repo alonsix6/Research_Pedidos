@@ -80,14 +80,15 @@ export interface TelegramUpdate {
   message?: TelegramMessage;
 }
 
-// Estados del flujo conversacional para /nuevopedido
+// Estados del flujo conversacional
 export type ConversationStep =
   | 'idle'
   | 'awaiting_client'
   | 'awaiting_description'
   | 'awaiting_requester'
   | 'awaiting_deadline'
-  | 'awaiting_assigned';
+  | 'awaiting_assigned'
+  | 'awaiting_complete_selection';
 
 export interface NewRequestData {
   client?: string;
@@ -96,4 +97,8 @@ export interface NewRequestData {
   requester_role?: string;
   deadline?: string;
   assigned_to?: string;
+}
+
+export interface CompleteRequestData {
+  requestIds?: string[];
 }
