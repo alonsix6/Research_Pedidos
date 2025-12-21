@@ -79,9 +79,9 @@ export function getHelpMessage(): string {
 📝 *Comandos principales:*
 
 /nuevopedido - Crear un nuevo pedido (flujo guiado)
+/completar - Marcar un pedido como completado
 /ver - Ver todos los pedidos activos
 /mios - Ver mis pedidos asignados
-/completar - Marcar un pedido como completado
 
 📅 *Filtros por fecha:*
 
@@ -89,8 +89,9 @@ export function getHelpMessage(): string {
 /semana - Pedidos de esta semana
 /urgente - Pedidos urgentes (< 2 días)
 
-ℹ️ *Información:*
+🔧 *Utilidades:*
 
+/cancelar - Cancelar operación actual
 /ayuda - Ver este mensaje de ayuda
 
 ---

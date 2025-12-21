@@ -1,34 +1,32 @@
-# GitHub Actions Workflow - Recordatorio Diario
-# Se ejecuta de Lunes a Viernes a las 9AM Lima (14:00 UTC)
-#
-# TODO: Implementar en Fase 4
-#
-# name: Daily Reminder
-#
-# on:
-#   schedule:
-#     # Cron: 14:00 UTC = 09:00 Lima (UTC-5)
-#     - cron: '0 14 * * 1-5'
-#   workflow_dispatch: # Permite ejecución manual
-#
-# jobs:
-#   send-reminder:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v3
-#
-#       - name: Setup Node.js
-#         uses: actions/setup-node@v3
-#         with:
-#           node-version: '20'
-#
-#       - name: Install dependencies
-#         run: npm install
-#
-#       - name: Run reminder script
-#         env:
-#           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-#           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-#           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-#           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-#         run: node scripts/daily-reminder.js
+name: Daily Reminder
+
+on:
+  schedule:
+    # Cron: 14:00 UTC = 09:00 Lima (UTC-5)
+    # Ejecutar de Lunes a Viernes
+    - cron: '0 14 * * 1-5'
+  workflow_dispatch: # Permite ejecución manual para testing
+
+jobs:
+  send-reminder:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install @supabase/supabase-js date-fns
+
+      - name: Run reminder script
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node scripts/daily-reminder.js
