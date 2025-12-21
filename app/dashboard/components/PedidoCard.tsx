@@ -1,12 +1,13 @@
 'use client';
 
 import { Request } from '@/lib/types';
-import { formatLimaDate, formatDaysLeft, getPriorityEmoji } from '@/lib/utils';
+import { formatLimaDate, formatDaysLeft } from '@/lib/utils';
+import { getPriorityIcon, CheckIcon, EditIcon, DeleteIcon } from './Icons';
 
 interface PedidoCardProps {
   request: Request;
   onComplete?: (id: string) => void;
-  onEdit?: (id: string) => void;
+  onEdit?: (request: Request) => void;
   onDelete?: (id: string) => void;
 }
 
@@ -16,7 +17,7 @@ export default function PedidoCard({
   onEdit,
   onDelete
 }: PedidoCardProps) {
-  const priorityEmoji = getPriorityEmoji(request.priority);
+  const priorityIcon = getPriorityIcon(request.priority);
   const daysLeft = formatDaysLeft(request.deadline);
 
   return (
@@ -24,7 +25,7 @@ export default function PedidoCard({
       <div className="flex justify-between items-start mb-2">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-base">{priorityEmoji}</span>
+            {priorityIcon}
             <h3 className="font-bold text-base uppercase">
               {request.client}
             </h3>
@@ -74,28 +75,29 @@ export default function PedidoCard({
           {onComplete && request.status !== 'completed' && (
             <button
               onClick={() => onComplete(request.id)}
-              className="btn-op1-success text-xs flex-1"
+              className="btn-op1-success text-xs flex-1 flex items-center justify-center gap-1"
               title="Marcar como completado"
             >
-              ✓ Completar
+              <CheckIcon size={14} />
+              Completar
             </button>
           )}
           {onEdit && (
             <button
-              onClick={() => onEdit(request.id)}
-              className="btn-op1 text-xs px-3"
+              onClick={() => onEdit(request)}
+              className="btn-op1 text-xs px-3 flex items-center justify-center"
               title="Editar"
             >
-              ✏️
+              <EditIcon size={14} />
             </button>
           )}
           {onDelete && (
             <button
               onClick={() => onDelete(request.id)}
-              className="btn-op1 text-xs px-3"
+              className="btn-op1 text-xs px-3 flex items-center justify-center"
               title="Eliminar"
             >
-              🗑️
+              <DeleteIcon size={14} />
             </button>
           )}
         </div>
