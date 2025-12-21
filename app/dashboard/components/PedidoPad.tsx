@@ -35,12 +35,14 @@ export default function PedidoPad({
         ${isCompleted ? 'pad-card-completed' : 'pad-card'}
       `}
     >
-      {/* LED indicador de prioridad */}
+      {/* LED indicador de prioridad - atenuado para completados */}
       <div
         className="absolute top-2 right-2 w-2 h-2 rounded-full"
         style={{
-          background: priorityColor,
-          boxShadow: `0 0 6px ${priorityColor}, 0 0 10px ${priorityColor}50`,
+          background: isCompleted ? '#555' : priorityColor,
+          boxShadow: isCompleted
+            ? 'inset 0 1px 2px rgba(0,0,0,0.3)'
+            : `0 0 6px ${priorityColor}, 0 0 10px ${priorityColor}50`,
         }}
       />
 
@@ -66,16 +68,22 @@ export default function PedidoPad({
         <div className="flex items-center gap-3 text-[9px]" style={{ color: '#666' }}>
           <span>{request.requester_name}</span>
           <span style={{ color: '#444' }}>|</span>
-          <span>{formatLimaDate(request.deadline)}</span>
+          <span>
+            {isCompleted && request.completed_at
+              ? formatLimaDate(request.completed_at)
+              : formatLimaDate(request.deadline)}
+          </span>
         </div>
 
-        {/* Tiempo restante */}
-        <div
-          className="mt-2 text-[10px] font-medium"
-          style={{ color: isUrgent ? '#CE2021' : '#1AA167' }}
-        >
-          {daysLeft}
-        </div>
+        {/* Tiempo restante - solo para items NO completados */}
+        {!isCompleted && (
+          <div
+            className="mt-2 text-[10px] font-medium"
+            style={{ color: isUrgent ? '#CE2021' : '#1AA167' }}
+          >
+            {daysLeft}
+          </div>
+        )}
       </div>
 
       {/* Acciones */}
@@ -116,14 +124,11 @@ export default function PedidoPad({
 
       {isCompleted && (
         <div
-          className="mt-3 pt-2 flex items-center gap-1 text-[9px]"
-          style={{
-            borderTop: '1px solid rgba(255,255,255,0.05)',
-            color: '#1AA167',
-          }}
+          className="mt-2 flex items-center gap-1.5 text-[9px]"
+          style={{ color: '#1AA167' }}
         >
           <Check size={10} />
-          COMPLETADO
+          <span className="uppercase tracking-wide">Completado</span>
         </div>
       )}
     </div>
