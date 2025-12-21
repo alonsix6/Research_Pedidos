@@ -3,17 +3,11 @@
 import { useState, useEffect } from 'react';
 import { Request } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
-import { calculatePriority, formatLimaDate } from '@/lib/utils';
-import {
-  CloseIcon,
-  ClientIcon,
-  DescriptionIcon,
-  UserIcon,
-  CalendarIcon,
-  SendIcon,
-} from './Icons';
+import { calculatePriority } from '@/lib/utils';
+import { X, Briefcase, FileText, User, Calendar, Send } from 'lucide-react';
+import Button3D from './controls/Button3D';
 
-interface User {
+interface ModalUser {
   id: string;
   name: string;
 }
@@ -32,7 +26,7 @@ export default function PedidoModal({
   editingRequest,
 }: PedidoModalProps) {
   const [loading, setLoading] = useState(false);
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<ModalUser[]>([]);
   const [formData, setFormData] = useState({
     client: '',
     description: '',
@@ -152,169 +146,227 @@ export default function PedidoModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Overlay */}
       <div
-        className="absolute inset-0 bg-black/50"
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      {/* Modal */}
-      <div className="relative bg-op1-card rounded-sm shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h2 className="text-lg font-bold uppercase tracking-wide">
-            {editingRequest ? 'Editar Pedido' : 'Nuevo Pedido'}
-          </h2>
+      {/* Modal como dispositivo */}
+      <div
+        className="relative w-full max-w-lg metallic-surface rounded-lg overflow-hidden max-h-[90vh] flex flex-col"
+        style={{
+          boxShadow: `
+            0 25px 80px rgba(0,0,0,0.6),
+            0 10px 30px rgba(0,0,0,0.4),
+            inset 0 1px 0 rgba(255,255,255,0.4),
+            inset 0 -1px 0 rgba(0,0,0,0.2)
+          `,
+        }}
+      >
+        {/* Header estilo TopBar */}
+        <div
+          className="flex items-center justify-between px-4 py-3"
+          style={{
+            background: 'linear-gradient(180deg, #D8D8D8 0%, #C0C0C0 100%)',
+            borderBottom: '1px solid rgba(0,0,0,0.15)',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="led led-orange" />
+            <span className="text-sm font-bold uppercase tracking-wide text-[#1A1A1A]">
+              {editingRequest ? 'EDIT REQUEST' : 'NEW REQUEST'}
+            </span>
+          </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-sm transition-op1"
-            title="Cerrar"
+            className="w-8 h-8 flex items-center justify-center rounded-sm transition-all
+                       bg-gradient-to-b from-[#4A4A4A] to-[#3A3A3A]
+                       shadow-[0_2px_0_#2A2A2A,inset_0_1px_0_rgba(255,255,255,0.1)]
+                       hover:from-[#5A5A5A] hover:to-[#4A4A4A]
+                       active:translate-y-[1px] active:shadow-[0_1px_0_#2A2A2A]"
           >
-            <CloseIcon size={20} />
+            <X size={14} className="text-white" />
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          {/* Cliente */}
-          <div>
-            <label className="label-op1 flex items-center gap-2">
-              <ClientIcon size={14} />
-              Cliente / Cuenta
-            </label>
-            <input
-              type="text"
-              value={formData.client}
-              onChange={(e) => setFormData({ ...formData, client: e.target.value })}
-              className={`input-op1 ${errors.client ? 'border-op1-accent' : ''}`}
-              placeholder="Ej: Claro, Movistar, BCP..."
-            />
-            {errors.client && (
-              <p className="text-xs text-op1-accent mt-1">{errors.client}</p>
-            )}
-          </div>
+        {/* Screen del formulario */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="lcd-screen p-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Cliente */}
+              <FormField
+                icon={<Briefcase size={12} />}
+                label="CLIENTE / CUENTA"
+                error={errors.client}
+              >
+                <input
+                  type="text"
+                  value={formData.client}
+                  onChange={(e) => setFormData({ ...formData, client: e.target.value })}
+                  className="input-lcd w-full"
+                  placeholder="Ej: Claro, Movistar, BCP..."
+                />
+              </FormField>
 
-          {/* Descripcion */}
-          <div>
-            <label className="label-op1 flex items-center gap-2">
-              <DescriptionIcon size={14} />
-              Descripcion del pedido
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className={`input-op1 resize-none ${errors.description ? 'border-op1-accent' : ''}`}
-              rows={3}
-              placeholder="Describe lo que necesitan..."
-            />
-            {errors.description && (
-              <p className="text-xs text-op1-accent mt-1">{errors.description}</p>
-            )}
-          </div>
+              {/* Descripcion */}
+              <FormField
+                icon={<FileText size={12} />}
+                label="DESCRIPCION"
+                error={errors.description}
+              >
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="input-lcd w-full resize-none"
+                  rows={3}
+                  placeholder="Describe lo que necesitan..."
+                />
+              </FormField>
 
-          {/* Solicitante */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label-op1 flex items-center gap-2">
-                <UserIcon size={14} />
-                Solicitante
-              </label>
-              <input
-                type="text"
-                value={formData.requester_name}
-                onChange={(e) => setFormData({ ...formData, requester_name: e.target.value })}
-                className={`input-op1 ${errors.requester_name ? 'border-op1-accent' : ''}`}
-                placeholder="Nombre"
-              />
-              {errors.requester_name && (
-                <p className="text-xs text-op1-accent mt-1">{errors.requester_name}</p>
+              {/* Solicitante */}
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  icon={<User size={12} />}
+                  label="SOLICITANTE"
+                  error={errors.requester_name}
+                >
+                  <input
+                    type="text"
+                    value={formData.requester_name}
+                    onChange={(e) => setFormData({ ...formData, requester_name: e.target.value })}
+                    className="input-lcd w-full"
+                    placeholder="Nombre"
+                  />
+                </FormField>
+                <FormField label="CARGO">
+                  <input
+                    type="text"
+                    value={formData.requester_role}
+                    onChange={(e) => setFormData({ ...formData, requester_role: e.target.value })}
+                    className="input-lcd w-full"
+                    placeholder="Ej: Ejecutiva"
+                  />
+                </FormField>
+              </div>
+
+              {/* Deadline */}
+              <FormField
+                icon={<Calendar size={12} />}
+                label="DEADLINE"
+                error={errors.deadline}
+              >
+                <input
+                  type="date"
+                  value={formData.deadline}
+                  onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+                  className="input-lcd w-full"
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </FormField>
+
+              {/* Asignado */}
+              <FormField
+                icon={<User size={12} />}
+                label="ASIGNAR A"
+              >
+                <select
+                  value={formData.assigned_to}
+                  onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
+                  className="input-lcd w-full"
+                >
+                  <option value="">Sin asignar</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+
+              {/* Error general */}
+              {errors.submit && (
+                <div
+                  className="p-3 rounded-sm text-xs"
+                  style={{
+                    background: 'rgba(206, 32, 33, 0.2)',
+                    border: '1px solid #CE2021',
+                    color: '#CE2021',
+                  }}
+                >
+                  {errors.submit}
+                </div>
               )}
-            </div>
-            <div>
-              <label className="label-op1">Cargo (opcional)</label>
-              <input
-                type="text"
-                value={formData.requester_role}
-                onChange={(e) => setFormData({ ...formData, requester_role: e.target.value })}
-                className="input-op1"
-                placeholder="Ej: Ejecutiva"
-              />
-            </div>
+            </form>
           </div>
+        </div>
 
-          {/* Deadline */}
-          <div>
-            <label className="label-op1 flex items-center gap-2">
-              <CalendarIcon size={14} />
-              Fecha de entrega
-            </label>
-            <input
-              type="date"
-              value={formData.deadline}
-              onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-              className={`input-op1 ${errors.deadline ? 'border-op1-accent' : ''}`}
-              min={new Date().toISOString().split('T')[0]}
-            />
-            {errors.deadline && (
-              <p className="text-xs text-op1-accent mt-1">{errors.deadline}</p>
+        {/* Botones de accion */}
+        <div
+          className="flex gap-3 p-4"
+          style={{
+            background: 'linear-gradient(180deg, #C8C8C8 0%, #B8B8B8 100%)',
+            borderTop: '1px solid rgba(255,255,255,0.3)',
+          }}
+        >
+          <Button3D
+            variant="grey"
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1"
+          >
+            CANCELAR
+          </Button3D>
+          <Button3D
+            variant="orange"
+            onClick={handleSubmit}
+            disabled={loading}
+            className="flex-1 flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              'GUARDANDO...'
+            ) : (
+              <>
+                <Send size={14} />
+                {editingRequest ? 'GUARDAR' : 'CREAR'}
+              </>
             )}
-          </div>
-
-          {/* Asignado */}
-          <div>
-            <label className="label-op1 flex items-center gap-2">
-              <UserIcon size={14} />
-              Asignar a (opcional)
-            </label>
-            <select
-              value={formData.assigned_to}
-              onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
-              className="input-op1"
-            >
-              <option value="">Sin asignar</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Error general */}
-          {errors.submit && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-sm">
-              <p className="text-xs text-op1-accent">{errors.submit}</p>
-            </div>
-          )}
-
-          {/* Botones */}
-          <div className="flex gap-3 pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-op1 flex-1"
-              disabled={loading}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="btn-op1-accent flex-1 flex items-center justify-center gap-2"
-              disabled={loading}
-            >
-              {loading ? (
-                'Guardando...'
-              ) : (
-                <>
-                  <SendIcon size={16} />
-                  {editingRequest ? 'Guardar cambios' : 'Crear pedido'}
-                </>
-              )}
-            </button>
-          </div>
-        </form>
+          </Button3D>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function FormField({
+  icon,
+  label,
+  error,
+  children,
+}: {
+  icon?: React.ReactNode;
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="flex items-center gap-2 mb-1.5">
+        {icon && <span style={{ color: '#FF4500' }}>{icon}</span>}
+        <span
+          className="text-[10px] uppercase tracking-wider font-medium"
+          style={{ color: error ? '#CE2021' : '#888' }}
+        >
+          {label}
+        </span>
+      </label>
+      {children}
+      {error && (
+        <p className="text-[10px] mt-1" style={{ color: '#CE2021' }}>
+          {error}
+        </p>
+      )}
     </div>
   );
 }
