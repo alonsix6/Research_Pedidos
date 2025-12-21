@@ -6,7 +6,7 @@ import {
   formatRequestsList,
   getUserByTelegramId,
 } from '../../lib/telegram';
-import { Request, ConversationStep, NewRequestData } from '../../lib/types';
+import { Request, ConversationStep, NewRequestData, CompleteRequestData } from '../../lib/types';
 import { differenceInDays, parseISO } from 'date-fns';
 import { parseNaturalDate, calculatePriority, getPriorityEmoji, formatLimaDate } from '../../lib/utils';
 
@@ -19,7 +19,7 @@ interface ConversationState {
   chatId: string;
   userId: string;
   step: ConversationStep;
-  data: NewRequestData;
+  data: NewRequestData | CompleteRequestData;
 }
 
 async function getConversationState(
@@ -186,7 +186,7 @@ export const handler: Handler = async (event) => {
           break;
 
         case '/completar':
-          await handleCompletarCommand(chatId);
+          await handleCompletarCommand(chatId, userId.toString());
           break;
 
         case '/cancelar':
@@ -409,13 +409,55 @@ async function handleConversationFlow(
         conversationMessages.summary(data, assignedName, priority, emoji)
       );
       break;
+
+    case 'awaiting_complete_selection':
+      const selectionNum = parseInt(text, 10);
+      const requestIds = state.data.requestIds as string[];
+
+      if (isNaN(selectionNum) || selectionNum < 1 || selectionNum > requestIds.length) {
+        await sendMessage(
+          chatId,
+          `⚠️ Por favor responde con un número del 1 al ${requestIds.length}.`
+        );
+        return;
+      }
+
+      const selectedRequestId = requestIds[selectionNum - 1];
+
+      // Actualizar el pedido a completado
+      const { data: updatedRequest, error: updateError } = await getSupabase()
+        .from('requests')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', selectedRequestId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Error completing request:', updateError);
+        await sendMessage(chatId, '❌ Error al completar el pedido. Intenta de nuevo.');
+        await clearConversationState(chatId.toString(), userId, getSupabase());
+        return;
+      }
+
+      // Limpiar estado conversacional
+      await clearConversationState(chatId.toString(), userId, getSupabase());
+
+      // Enviar confirmación
+      await sendMessage(
+        chatId,
+        `✅ *Pedido completado!*\n\n${updatedRequest.client} - ${updatedRequest.description}\n\n🎉 ¡Buen trabajo!`
+      );
+      break;
   }
 }
 
 /**
  * Comando /completar - Marcar pedido como completado
  */
-async function handleCompletarCommand(chatId: number) {
+async function handleCompletarCommand(chatId: number, userId: string) {
   const { data: requests, error } = await getSupabase()
     .from('requests')
     .select('*')
@@ -434,6 +476,18 @@ async function handleCompletarCommand(chatId: number) {
     return;
   }
 
+  // Guardar los IDs de los pedidos en el estado de conversación
+  const requestIds = requests.map((req: Request) => req.id);
+  await saveConversationState(
+    {
+      chatId: chatId.toString(),
+      userId: userId,
+      step: 'awaiting_complete_selection',
+      data: { requestIds },
+    },
+    getSupabase()
+  );
+
   // Mostrar lista de pedidos con números
   let message = '📝 *Pedidos activos*\n\nResponde con el número del pedido a completar:\n\n';
   requests.forEach((req: Request, index: number) => {
@@ -443,9 +497,6 @@ async function handleCompletarCommand(chatId: number) {
   message += '\nO usa /cancelar para cancelar.';
 
   await sendMessage(chatId, message);
-
-  // TODO: Guardar estado para esperar respuesta con el número
-  // Por ahora, esto es un placeholder - se puede mejorar guardando el estado en conversation_state
 }
 
 /**
