@@ -1,23 +1,26 @@
 'use client';
 
+import { ReactNode } from 'react';
 import { Request } from '@/lib/types';
 import PedidoCard from './PedidoCard';
 
 interface PedidosListProps {
   title: string;
-  emoji: string;
+  icon: ReactNode;
   requests: Request[];
   emptyMessage?: string;
+  emptyIcon?: ReactNode;
   onComplete?: (id: string) => void;
-  onEdit?: (id: string) => void;
+  onEdit?: (request: Request) => void;
   onDelete?: (id: string) => void;
 }
 
 export default function PedidosList({
   title,
-  emoji,
+  icon,
   requests,
-  emptyMessage = 'No hay pedidos en esta categoría',
+  emptyMessage = 'No hay pedidos en esta categoria',
+  emptyIcon,
   onComplete,
   onEdit,
   onDelete,
@@ -26,11 +29,14 @@ export default function PedidosList({
     return (
       <div className="mb-6">
         <h2 className="text-sm font-bold uppercase tracking-wide mb-3 flex items-center gap-2">
-          <span>{emoji}</span>
+          {icon}
           <span>{title}</span>
           <span className="text-op1-text-secondary">({requests.length})</span>
         </h2>
-        <p className="text-op1-text-secondary text-sm italic">{emptyMessage}</p>
+        <p className="text-op1-text-secondary text-sm italic flex items-center gap-2">
+          {emptyIcon}
+          {emptyMessage}
+        </p>
       </div>
     );
   }
@@ -38,7 +44,7 @@ export default function PedidosList({
   return (
     <div className="mb-6">
       <h2 className="text-sm font-bold uppercase tracking-wide mb-3 flex items-center gap-2">
-        <span>{emoji}</span>
+        {icon}
         <span>{title}</span>
         <span className="text-op1-text-secondary">({requests.length})</span>
       </h2>
