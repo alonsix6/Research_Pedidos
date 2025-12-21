@@ -2,16 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Variables del tema OP-1 */
+/* Fuente DSEG para displays 7-segmentos */
+@font-face {
+  font-family: 'DSEG7';
+  src: url('https://cdn.jsdelivr.net/npm/dseg@0.46.0/fonts/DSEG7-Classic/DSEG7Classic-Bold.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/npm/dseg@0.46.0/fonts/DSEG7-Classic/DSEG7Classic-Bold.woff') format('woff');
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'DSEG7';
+  src: url('https://cdn.jsdelivr.net/npm/dseg@0.46.0/fonts/DSEG7-Classic/DSEG7Classic-Regular.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/npm/dseg@0.46.0/fonts/DSEG7-Classic/DSEG7Classic-Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* ========================================
+   TEENAGE ENGINEERING THEME VARIABLES
+   ======================================== */
 :root {
-  --op1-bg: #E8E8E8;
-  --op1-card: #FFFFFF;
-  --op1-text: #2A2A2A;
-  --op1-text-secondary: #666666;
-  --op1-accent: #FF4500;
-  --op1-success: #00CC66;
-  --op1-warning: #FFA500;
-  --op1-button: #3A3A3A;
+  /* Cuerpo del dispositivo */
+  --te-body: #C8C8C8;
+  --te-body-dark: #A8A8A8;
+  --te-body-light: #E0E0E0;
+  --te-body-shadow: #888888;
+
+  /* Pantalla LCD */
+  --te-screen-bg: #1A1A1A;
+  --te-screen-border: #0D0D0D;
+  --te-screen-glow: rgba(0, 212, 255, 0.05);
+
+  /* Colores de acento */
+  --te-orange: #FF4500;
+  --te-red: #CE2021;
+  --te-green: #1AA167;
+  --te-blue: #1270B8;
+  --te-yellow: #FFC003;
+  --te-cyan: #00D4FF;
+
+  /* Botones */
+  --te-button-black: #2A2A2A;
+  --te-button-black-light: #3A3A3A;
+  --te-button-white: #F0F0F0;
+  --te-button-grey: #4A4A4A;
+
+  /* Texto */
+  --te-text-dark: #1A1A1A;
+  --te-text-light: #E5E5E5;
+  --te-text-muted: #666666;
+  --te-label: #FF4500;
+
+  /* Sombras */
+  --te-shadow-button: 0 4px 0 #1A1A1A, 0 6px 10px rgba(0,0,0,0.25);
+  --te-shadow-button-pressed: 0 1px 0 #1A1A1A, 0 2px 4px rgba(0,0,0,0.2);
+  --te-shadow-device: 0 20px 60px rgba(0,0,0,0.3), 0 8px 20px rgba(0,0,0,0.2);
 }
 
 * {
@@ -22,96 +68,424 @@
 
 body {
   font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
-  background-color: var(--op1-bg);
-  color: var(--op1-text);
+  background: linear-gradient(180deg, #2A2A2A 0%, #1A1A1A 100%);
+  min-height: 100vh;
+  color: var(--te-text-dark);
   font-size: 14px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Botones estilo OP-1 */
-.btn-op1 {
-  @apply px-4 py-2 rounded-sm font-medium transition-all duration-100;
-  background-color: var(--op1-button);
+/* ========================================
+   TEXTURAS METALICAS
+   ======================================== */
+.metallic-surface {
+  background: linear-gradient(
+    180deg,
+    var(--te-body-light) 0%,
+    var(--te-body) 15%,
+    var(--te-body-dark) 85%,
+    var(--te-body-shadow) 100%
+  );
+}
+
+.metallic-surface-horizontal {
+  background: linear-gradient(
+    135deg,
+    var(--te-body-light) 0%,
+    var(--te-body) 25%,
+    var(--te-body-dark) 75%,
+    var(--te-body-shadow) 100%
+  );
+}
+
+/* ========================================
+   BOTONES 3D FISICOS
+   ======================================== */
+.btn-3d {
+  position: relative;
+  padding: 10px 16px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.05s ease;
+  user-select: none;
+}
+
+.btn-3d-black {
+  background: linear-gradient(180deg, var(--te-button-black-light) 0%, var(--te-button-black) 100%);
   color: white;
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 4px 0 #1A1A1A,
+    0 6px 10px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.1);
 }
 
-.btn-op1:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.2);
+.btn-3d-black:hover {
+  background: linear-gradient(180deg, #444444 0%, #333333 100%);
 }
 
-.btn-op1:active {
-  transform: translateY(1px);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+.btn-3d-black:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 #1A1A1A,
+    0 2px 4px rgba(0,0,0,0.2),
+    inset 0 2px 4px rgba(0,0,0,0.3);
 }
 
-.btn-op1-accent {
-  @apply btn-op1;
-  background-color: var(--op1-accent);
+.btn-3d-orange {
+  background: linear-gradient(180deg, #FF5722 0%, var(--te-orange) 100%);
+  color: white;
+  box-shadow:
+    0 4px 0 #CC3700,
+    0 6px 10px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.2);
 }
 
-.btn-op1-success {
-  @apply btn-op1;
-  background-color: var(--op1-success);
+.btn-3d-orange:hover {
+  background: linear-gradient(180deg, #FF6A3D 0%, #FF5722 100%);
 }
 
-/* Cards estilo OP-1 */
-.card-op1 {
-  @apply bg-op1-card rounded-sm p-4;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+.btn-3d-orange:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 #CC3700,
+    0 2px 4px rgba(0,0,0,0.2),
+    inset 0 2px 4px rgba(0,0,0,0.3);
 }
 
-/* Inputs estilo OP-1 */
-.input-op1 {
-  @apply w-full px-3 py-2 rounded-sm border border-gray-300 font-mono text-sm;
-  background-color: white;
-  transition: all 150ms ease;
+.btn-3d-white {
+  background: linear-gradient(180deg, #FFFFFF 0%, var(--te-button-white) 100%);
+  color: var(--te-text-dark);
+  box-shadow:
+    0 4px 0 #CCCCCC,
+    0 6px 10px rgba(0,0,0,0.2),
+    inset 0 1px 0 rgba(255,255,255,0.8);
 }
 
-.input-op1:focus {
+.btn-3d-white:hover {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F8F8F8 100%);
+}
+
+.btn-3d-white:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 #CCCCCC,
+    0 2px 4px rgba(0,0,0,0.15),
+    inset 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-3d-grey {
+  background: linear-gradient(180deg, #5A5A5A 0%, var(--te-button-grey) 100%);
+  color: white;
+  box-shadow:
+    0 4px 0 #2A2A2A,
+    0 6px 10px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+.btn-3d-grey:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 #2A2A2A,
+    0 2px 4px rgba(0,0,0,0.2),
+    inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.btn-3d-green {
+  background: linear-gradient(180deg, #1FBF7A 0%, var(--te-green) 100%);
+  color: white;
+  box-shadow:
+    0 4px 0 #147A4D,
+    0 6px 10px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.2);
+}
+
+.btn-3d-green:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 #147A4D,
+    0 2px 4px rgba(0,0,0,0.2),
+    inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* ========================================
+   PANTALLA LCD
+   ======================================== */
+.lcd-screen {
+  background: var(--te-screen-bg);
+  border: 4px solid var(--te-screen-border);
+  border-radius: 6px;
+  box-shadow:
+    inset 0 0 30px rgba(0,0,0,0.5),
+    inset 0 0 4px var(--te-screen-glow),
+    0 2px 8px rgba(0,0,0,0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+.lcd-screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,0.03) 0%,
+    transparent 50%,
+    rgba(0,0,0,0.1) 100%
+  );
+  pointer-events: none;
+}
+
+/* Scanlines sutiles */
+.lcd-scanlines::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(0,0,0,0.15) 2px,
+    rgba(0,0,0,0.15) 4px
+  );
+  pointer-events: none;
+  opacity: 0.3;
+}
+
+/* Display 7 segmentos */
+.lcd-number {
+  font-family: 'DSEG7', monospace;
+  color: var(--te-cyan);
+  text-shadow: 0 0 10px var(--te-cyan), 0 0 20px rgba(0, 212, 255, 0.3);
+  letter-spacing: 2px;
+}
+
+.lcd-number-orange {
+  color: var(--te-orange);
+  text-shadow: 0 0 10px var(--te-orange), 0 0 20px rgba(255, 69, 0, 0.3);
+}
+
+.lcd-number-green {
+  color: var(--te-green);
+  text-shadow: 0 0 10px var(--te-green), 0 0 20px rgba(26, 161, 103, 0.3);
+}
+
+.lcd-number-dim {
+  opacity: 0.15;
+}
+
+/* ========================================
+   SPEAKER GRILLE
+   ======================================== */
+.speaker-grille {
+  background-color: #1A1A1A;
+  background-image: radial-gradient(circle at center, #2A2A2A 30%, transparent 30%);
+  background-size: 6px 6px;
+  border-radius: 4px;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.6);
+}
+
+/* ========================================
+   KNOBS ROTATIVOS
+   ======================================== */
+.knob {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    #F8F8F8 0%,
+    #E0E0E0 30%,
+    #C0C0C0 70%,
+    #A0A0A0 100%
+  );
+  box-shadow:
+    0 4px 12px rgba(0,0,0,0.4),
+    inset 0 2px 4px rgba(255,255,255,0.6),
+    inset 0 -2px 4px rgba(0,0,0,0.2);
+  position: relative;
+  cursor: pointer;
+}
+
+.knob::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 14px;
+  background: var(--te-text-dark);
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 2px;
+}
+
+.knob-orange {
+  background: radial-gradient(
+    circle at 35% 35%,
+    #FF7043 0%,
+    var(--te-orange) 50%,
+    #CC3700 100%
+  );
+}
+
+.knob-orange::after {
+  background: white;
+}
+
+.knob-small {
+  width: 32px;
+  height: 32px;
+}
+
+.knob-small::after {
+  width: 3px;
+  height: 10px;
+  top: 5px;
+}
+
+/* ========================================
+   LED INDICATORS
+   ======================================== */
+.led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+}
+
+.led-off {
+  background: #333;
+}
+
+.led-red {
+  background: var(--te-red);
+  box-shadow:
+    0 0 6px var(--te-red),
+    0 0 12px rgba(206, 32, 33, 0.5),
+    inset 0 1px 2px rgba(255,255,255,0.3);
+}
+
+.led-green {
+  background: var(--te-green);
+  box-shadow:
+    0 0 6px var(--te-green),
+    0 0 12px rgba(26, 161, 103, 0.5),
+    inset 0 1px 2px rgba(255,255,255,0.3);
+}
+
+.led-orange {
+  background: var(--te-orange);
+  box-shadow:
+    0 0 6px var(--te-orange),
+    0 0 12px rgba(255, 69, 0, 0.5),
+    inset 0 1px 2px rgba(255,255,255,0.3);
+}
+
+.led-blue {
+  background: var(--te-blue);
+  box-shadow:
+    0 0 6px var(--te-blue),
+    0 0 12px rgba(18, 112, 184, 0.5),
+    inset 0 1px 2px rgba(255,255,255,0.3);
+}
+
+/* ========================================
+   LABELS INDUSTRIALES
+   ======================================== */
+.label-industrial {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--te-text-dark);
+}
+
+.label-orange {
+  color: var(--te-orange);
+}
+
+.label-screen {
+  color: var(--te-text-light);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+
+/* ========================================
+   CARDS COMO PADS
+   ======================================== */
+.pad-card {
+  background: linear-gradient(180deg, #3A3A3A 0%, #2A2A2A 100%);
+  border-radius: 4px;
+  padding: 12px;
+  box-shadow:
+    0 4px 0 #1A1A1A,
+    0 6px 12px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+  transition: all 0.05s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.pad-card:hover {
+  background: linear-gradient(180deg, #444444 0%, #333333 100%);
+}
+
+.pad-card:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 #1A1A1A,
+    0 2px 4px rgba(0,0,0,0.2),
+    inset 0 2px 6px rgba(0,0,0,0.4);
+}
+
+.pad-card-completed {
+  background: linear-gradient(180deg, #2A3A2A 0%, #1A2A1A 100%);
+  opacity: 0.7;
+}
+
+/* ========================================
+   INPUTS ESTILO LCD
+   ======================================== */
+.input-lcd {
+  background: #0A0A0A;
+  border: 2px solid #1A1A1A;
+  border-radius: 4px;
+  padding: 10px 12px;
+  color: var(--te-cyan);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+  transition: all 0.15s ease;
+}
+
+.input-lcd:focus {
   outline: none;
-  border-color: var(--op1-accent);
-  box-shadow: 0 0 0 2px rgba(255, 69, 0, 0.1);
+  border-color: var(--te-orange);
+  box-shadow:
+    inset 0 2px 8px rgba(0,0,0,0.5),
+    0 0 0 2px rgba(255, 69, 0, 0.2);
 }
 
-/* Labels estilo OP-1 */
-.label-op1 {
-  @apply block text-xs font-medium mb-1 uppercase tracking-wide;
-  color: var(--op1-text-secondary);
+.input-lcd::placeholder {
+  color: #444;
 }
 
-/* Badges de prioridad */
-.badge-urgent {
-  @apply inline-flex items-center px-2 py-1 rounded-sm text-xs font-medium;
-  background-color: var(--op1-accent);
-  color: white;
+/* ========================================
+   UTILIDADES
+   ======================================== */
+.transition-te {
+  transition: all 0.1s ease;
 }
 
-.badge-high {
-  @apply inline-flex items-center px-2 py-1 rounded-sm text-xs font-medium;
-  background-color: var(--op1-warning);
-  color: white;
-}
-
-.badge-normal {
-  @apply inline-flex items-center px-2 py-1 rounded-sm text-xs font-medium;
-  background-color: var(--op1-success);
-  color: white;
-}
-
-.badge-low {
-  @apply inline-flex items-center px-2 py-1 rounded-sm text-xs font-medium;
-  background-color: #999;
-  color: white;
-}
-
-/* Smooth transitions */
-.transition-op1 {
-  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+.text-shadow-glow {
+  text-shadow: 0 0 10px currentColor;
 }
 
 /* Scrollbar personalizada */
@@ -121,14 +495,14 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--op1-bg);
+  background: #1A1A1A;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--op1-text-secondary);
+  background: #4A4A4A;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--op1-text);
+  background: #5A5A5A;
 }

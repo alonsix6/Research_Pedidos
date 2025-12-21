@@ -4,19 +4,22 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Request } from '@/lib/types';
 import { classifyByUrgency } from '@/lib/utils';
-import StatsBar from './components/StatsBar';
-import PedidosList from './components/PedidosList';
+import { Plus, RefreshCw, Lightbulb, MessageSquare } from 'lucide-react';
+
+// Device components
+import DeviceFrame from './components/device/DeviceFrame';
+import TopBar from './components/device/TopBar';
+import SpeakerGrille from './components/device/SpeakerGrille';
+import StatsDisplay from './components/device/StatsDisplay';
+import SectionHeader from './components/device/SectionHeader';
+
+// Controls
+import Button3D from './components/controls/Button3D';
+import Knob from './components/controls/Knob';
+
+// Cards
+import PedidoPad from './components/PedidoPad';
 import PedidoModal from './components/PedidoModal';
-import {
-  SectionUrgent,
-  SectionThisWeek,
-  SectionLater,
-  SectionCompleted,
-  PlusIcon,
-  TipIcon,
-  AlertIcon,
-  CheckIcon,
-} from './components/Icons';
 
 export default function DashboardPage() {
   const [requests, setRequests] = useState<Request[]>([]);
@@ -38,7 +41,6 @@ export default function DashboardPage() {
         .order('deadline', { ascending: true });
 
       if (error) throw error;
-
       setRequests(data || []);
     } catch (err) {
       console.error('Error loading requests:', err);
@@ -59,11 +61,9 @@ export default function DashboardPage() {
         .eq('id', id);
 
       if (error) throw error;
-
       loadRequests();
     } catch (err) {
       console.error('Error completing request:', err);
-      alert('Error al completar el pedido');
     }
   }
 
@@ -73,7 +73,7 @@ export default function DashboardPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Estas seguro de eliminar este pedido?')) return;
+    if (!confirm('Seguro que deseas eliminar este pedido?')) return;
 
     try {
       const { error } = await supabase
@@ -82,11 +82,9 @@ export default function DashboardPage() {
         .eq('id', id);
 
       if (error) throw error;
-
       loadRequests();
     } catch (err) {
       console.error('Error deleting request:', err);
-      alert('Error al eliminar el pedido');
     }
   }
 
@@ -100,137 +98,210 @@ export default function DashboardPage() {
     setEditingRequest(null);
   }
 
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-op1-bg p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center py-12">
-            <p className="text-op1-text-secondary">Cargando pedidos...</p>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  if (error) {
-    return (
-      <main className="min-h-screen bg-op1-bg p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="card-op1 text-center py-12">
-            <p className="text-op1-accent mb-4 flex items-center justify-center gap-2">
-              <AlertIcon size={16} />
-              {error}
-            </p>
-            <button onClick={loadRequests} className="btn-op1">
-              Reintentar
-            </button>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
   const activeRequests = requests.filter(
     (r) => r.status === 'pending' || r.status === 'in_progress'
   );
   const completedRequests = requests.filter((r) => r.status === 'completed');
-
   const { urgent, thisWeek, later } = classifyByUrgency(activeRequests);
 
   return (
-    <main className="min-h-screen bg-op1-bg p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <header className="mb-6">
-          <div className="flex justify-between items-center mb-2">
-            <h1 className="text-xl font-bold uppercase tracking-wide">
-              RESET R&A - PEDIDOS
-            </h1>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleOpenNewModal}
-                className="btn-op1-accent flex items-center gap-2"
-              >
-                <PlusIcon size={16} />
-                Nuevo Pedido
-              </button>
-              <a
-                href="https://t.me/Research_Pedidos_bot"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-op1-text-secondary hover:text-op1-accent transition-op1"
-              >
-                @Research_Pedidos_bot
-              </a>
-            </div>
-          </div>
-          <p className="text-xs text-op1-text-secondary">
-            Dashboard de gestion de pedidos
+    <DeviceFrame>
+      {/* Top Bar con indicadores */}
+      <TopBar isConnected={!error} />
+
+      {/* Header Section */}
+      <div className="flex items-start justify-between p-4 pb-2">
+        {/* Branding */}
+        <div>
+          <h1
+            className="text-lg font-bold tracking-wide"
+            style={{ color: '#1A1A1A' }}
+          >
+            RESET R&A
+          </h1>
+          <p
+            className="text-[10px] uppercase tracking-wider"
+            style={{ color: '#666' }}
+          >
+            Sistema de Pedidos v1.0
           </p>
-        </header>
+        </div>
 
-        {/* Stats */}
-        <StatsBar
-          total={requests.length}
-          active={activeRequests.length}
-          completed={completedRequests.length}
-        />
+        {/* Speaker Grille decorativo */}
+        <SpeakerGrille rows={6} cols={16} />
+      </div>
 
-        {/* Pedidos urgentes */}
-        <PedidosList
-          title="URGENTES - Vencen hoy o estan atrasados"
-          icon={<SectionUrgent size={16} />}
-          requests={urgent}
-          emptyMessage="No hay pedidos urgentes. Todo bajo control!"
-          emptyIcon={<CheckIcon size={14} style={{ color: '#00CC66' }} />}
-          onComplete={handleComplete}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
-
-        {/* Pedidos de esta semana */}
-        <PedidosList
-          title="ESTA SEMANA - Proximos 7 dias"
-          icon={<SectionThisWeek size={16} />}
-          requests={thisWeek}
-          emptyMessage="No hay pedidos para esta semana"
-          onComplete={handleComplete}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
-
-        {/* Pedidos futuros */}
-        <PedidosList
-          title="PROXIMOS - Mas de 7 dias"
-          icon={<SectionLater size={16} />}
-          requests={later}
-          emptyMessage="No hay pedidos programados a largo plazo"
-          onComplete={handleComplete}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
-
-        {/* Completados recientes */}
-        {completedRequests.length > 0 && (
-          <div className="mt-8 pt-6 border-t border-gray-300">
-            <PedidosList
-              title="COMPLETADOS"
-              icon={<SectionCompleted size={16} />}
-              requests={completedRequests.slice(0, 5)}
-              emptyMessage=""
-            />
+      {/* Pantalla LCD con Stats */}
+      <div className="px-4 py-2">
+        {loading ? (
+          <div className="lcd-screen p-8 text-center">
+            <p className="lcd-number text-lg">LOADING...</p>
           </div>
+        ) : error ? (
+          <div className="lcd-screen p-8 text-center">
+            <p className="text-[#CE2021] text-sm mb-4">{error}</p>
+            <Button3D variant="orange" onClick={loadRequests}>
+              REINTENTAR
+            </Button3D>
+          </div>
+        ) : (
+          <StatsDisplay
+            total={requests.length}
+            active={activeRequests.length}
+            completed={completedRequests.length}
+            urgent={urgent.length}
+          />
+        )}
+      </div>
+
+      {/* Seccion de Controles */}
+      <div
+        className="flex items-center justify-between px-4 py-3 mx-4 rounded-sm"
+        style={{
+          background: 'linear-gradient(180deg, #D0D0D0 0%, #C0C0C0 100%)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -1px 0 rgba(0,0,0,0.1)',
+        }}
+      >
+        {/* Knob decorativo */}
+        <Knob label="VOLUME" size="sm" value={75} />
+
+        {/* Botones de accion */}
+        <div className="flex items-center gap-2">
+          <Button3D variant="orange" onClick={handleOpenNewModal} className="flex items-center gap-2">
+            <Plus size={14} />
+            NUEVO
+          </Button3D>
+          <Button3D variant="black" onClick={loadRequests} className="flex items-center gap-2">
+            <RefreshCw size={14} />
+            REFRESH
+          </Button3D>
+        </div>
+
+        {/* Knob decorativo */}
+        <Knob label="BPM" subLabel="SWING" variant="orange" size="sm" value={60} />
+      </div>
+
+      {/* Contenido Principal - Lista de Pedidos */}
+      <div className="p-4 space-y-6">
+        {/* Urgentes */}
+        {urgent.length > 0 && (
+          <section>
+            <SectionHeader
+              title="URGENTES"
+              count={urgent.length}
+              color="red"
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {urgent.map((request) => (
+                <PedidoPad
+                  key={request.id}
+                  request={request}
+                  onComplete={handleComplete}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          </section>
         )}
 
-        {/* Footer */}
-        <footer className="mt-8 text-center text-xs text-op1-text-secondary">
-          <p className="flex items-center justify-center gap-2">
-            <TipIcon size={14} />
-            Tip: Usa el bot de Telegram (@Research_Pedidos_bot) para agregar
-            pedidos facilmente
-          </p>
-          <p className="mt-2">Reset R&A - {new Date().getFullYear()}</p>
-        </footer>
+        {/* Esta semana */}
+        {thisWeek.length > 0 && (
+          <section>
+            <SectionHeader
+              title="ESTA SEMANA"
+              count={thisWeek.length}
+              color="orange"
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {thisWeek.map((request) => (
+                <PedidoPad
+                  key={request.id}
+                  request={request}
+                  onComplete={handleComplete}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Proximos */}
+        {later.length > 0 && (
+          <section>
+            <SectionHeader
+              title="PROXIMOS"
+              count={later.length}
+              color="green"
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {later.map((request) => (
+                <PedidoPad
+                  key={request.id}
+                  request={request}
+                  onComplete={handleComplete}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Completados */}
+        {completedRequests.length > 0 && (
+          <section>
+            <SectionHeader
+              title="COMPLETADOS"
+              count={completedRequests.length}
+              color="cyan"
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {completedRequests.slice(0, 6).map((request) => (
+                <PedidoPad
+                  key={request.id}
+                  request={request}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Estado vacio */}
+        {!loading && activeRequests.length === 0 && (
+          <div className="lcd-screen p-8 text-center">
+            <p className="lcd-number text-lg mb-2">NO DATA</p>
+            <p className="text-[#666] text-xs mb-4">No hay pedidos activos</p>
+            <Button3D variant="orange" onClick={handleOpenNewModal}>
+              CREAR PRIMER PEDIDO
+            </Button3D>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div
+        className="flex items-center justify-between px-4 py-3 mt-4"
+        style={{
+          background: 'linear-gradient(180deg, #B8B8B8 0%, #A8A8A8 100%)',
+          borderTop: '1px solid rgba(255,255,255,0.3)',
+        }}
+      >
+        <div className="flex items-center gap-2 text-[10px]" style={{ color: '#555' }}>
+          <Lightbulb size={12} />
+          <span>TIP: Usa el bot de Telegram para agregar pedidos rapidamente</span>
+        </div>
+        <a
+          href="https://t.me/Research_Pedidos_bot"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-[10px] hover:text-[#FF4500] transition-colors"
+          style={{ color: '#555' }}
+        >
+          <MessageSquare size={12} />
+          @Research_Pedidos_bot
+        </a>
       </div>
 
       {/* Modal */}
@@ -240,6 +311,6 @@ export default function DashboardPage() {
         onSuccess={loadRequests}
         editingRequest={editingRequest}
       />
-    </main>
+    </DeviceFrame>
   );
 }
