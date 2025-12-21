@@ -225,9 +225,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Decorative screws */}
-        <div className="absolute top-4 left-4 w-3 h-3 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 shadow-inner" />
-        <div className="absolute top-4 right-4 w-3 h-3 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 shadow-inner" />
+        {/* Decorative screws - only on bottom to not interfere with top bar */}
         <div className="absolute bottom-4 left-4 w-3 h-3 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 shadow-inner" />
         <div className="absolute bottom-4 right-4 w-3 h-3 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 shadow-inner" />
       </motion.div>
