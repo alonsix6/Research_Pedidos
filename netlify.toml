@@ -16,10 +16,6 @@
 [functions]
   node_bundler = "esbuild"
 
-# Scheduled function for daily summary at 9am Lima time (14:00 UTC)
-[functions."daily-summary"]
-  schedule = "0 14 * * 1-5"
-
 [[headers]]
   for = "/*"
   [headers.values]

@@ -189,6 +189,10 @@ body {
    ======================================== */
 .btn-3d {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 10px 16px;
   font-family: inherit;
   font-size: 11px;
@@ -200,6 +204,7 @@ body {
   cursor: pointer;
   transition: transform 0.05s ease, box-shadow 0.05s ease;
   user-select: none;
+  white-space: nowrap;
 }
 
 .btn-3d-black {
