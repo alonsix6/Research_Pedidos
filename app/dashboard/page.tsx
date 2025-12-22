@@ -20,6 +20,8 @@ import {
   Keyboard,
   Wifi,
   WifiOff,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import {
   DndContext,
@@ -42,6 +44,7 @@ import { useAppSound } from '@/lib/hooks/useAppSound';
 import { useKeyboardShortcuts, createDashboardShortcuts } from '@/lib/hooks/useKeyboardShortcuts';
 import { useRealtimeRequests } from '@/lib/hooks/useRealtimeRequests';
 import { useTeamMembers } from '@/lib/hooks/useTeamMembers';
+import { useTheme } from '@/lib/hooks/useTheme';
 import { useToast } from './components/Toast';
 
 // Device components
@@ -69,6 +72,7 @@ export default function DashboardPage() {
   const { settings, toggleSound, toggleCompactView } = useSettings();
   const { playClick, playSuccess, playWhoosh, playNotification } = useAppSound(settings.soundEnabled);
   const { showToast } = useToast();
+  const { theme, toggleTheme, isDark } = useTheme();
 
   // Team members
   const { members: teamMembers } = useTeamMembers();
@@ -370,9 +374,9 @@ export default function DashboardPage() {
 
       {/* Controls Section */}
       <div
-        className="flex items-center justify-between px-4 py-3 mx-4 rounded-sm"
+        className="flex items-center justify-between px-4 py-3 mx-4 rounded-sm transition-all duration-300"
         style={{
-          background: 'linear-gradient(180deg, #D0D0D0 0%, #C0C0C0 100%)',
+          background: 'var(--controls-bg)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -1px 0 rgba(0,0,0,0.1)',
         }}
       >
@@ -413,6 +417,25 @@ export default function DashboardPage() {
               <List size={16} className="text-[#FF4500]" aria-hidden="true" />
             ) : (
               <Grid size={16} className="text-gray-400" aria-hidden="true" />
+            )}
+          </motion.button>
+
+          <motion.button
+            onClick={() => { playClick(); toggleTheme(); }}
+            className="w-11 h-11 flex items-center justify-center rounded-full"
+            style={{
+              background: 'linear-gradient(180deg, #4A4A4A 0%, #3A3A3A 100%)',
+              boxShadow: '0 2px 0 #2A2A2A, inset 0 1px 0 rgba(255,255,255,0.1)',
+            }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95, y: 1 }}
+            aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+            aria-pressed={isDark}
+          >
+            {isDark ? (
+              <Sun size={16} className="text-[#FFD600]" aria-hidden="true" />
+            ) : (
+              <Moon size={16} className="text-gray-400" aria-hidden="true" />
             )}
           </motion.button>
         </nav>

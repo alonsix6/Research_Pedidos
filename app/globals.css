@@ -78,6 +78,30 @@
   --te-text-muted: #949494; /* Changed from #777 for 4.5:1 contrast on dark */
   --te-text-muted-light: #595959; /* For light backgrounds */
   --te-label: #FF4500;
+
+  /* Theme-specific variables - Light Mode (default) */
+  --device-bg: linear-gradient(180deg, #D8D8D8 0%, #C8C8C8 100%);
+  --device-border: #A0A0A0;
+  --device-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 10px 20px rgba(0,0,0,0.3);
+  --header-bg: linear-gradient(180deg, #E0E0E0 0%, #D0D0D0 100%);
+  --header-text: #1A1A1A;
+  --controls-bg: linear-gradient(180deg, #D0D0D0 0%, #C0C0C0 100%);
+  --footer-bg: linear-gradient(180deg, #B8B8B8 0%, #A8A8A8 100%);
+  --footer-text: #595959;
+  --page-bg: linear-gradient(180deg, #2A2A2A 0%, #1A1A1A 100%);
+}
+
+/* Dark Mode Theme */
+[data-theme="dark"] {
+  --device-bg: linear-gradient(180deg, #1A1A1A 0%, #0F0F0F 100%);
+  --device-border: #333333;
+  --device-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.6), 0 0 40px rgba(255,69,0,0.1);
+  --header-bg: linear-gradient(180deg, #252525 0%, #1A1A1A 100%);
+  --header-text: #E8E8E8;
+  --controls-bg: linear-gradient(180deg, #2A2A2A 0%, #1F1F1F 100%);
+  --footer-bg: linear-gradient(180deg, #1A1A1A 0%, #0F0F0F 100%);
+  --footer-text: #949494;
+  --page-bg: linear-gradient(180deg, #0F0F0F 0%, #050505 100%);
 }
 
 * {
@@ -88,13 +112,14 @@
 
 body {
   font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
-  background: linear-gradient(180deg, #2A2A2A 0%, #1A1A1A 100%);
+  background: var(--page-bg);
   min-height: 100vh;
   color: var(--te-text-dark);
   font-size: 14px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background 0.3s ease;
 }
 
 /* ========================================
@@ -119,6 +144,32 @@ body {
       var(--te-body-shadow) 100%
     );
   position: relative;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Dark mode metallic surface */
+[data-theme="dark"] .metallic-surface {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.08) 0%,
+      rgba(255,255,255,0) 2%
+    ),
+    linear-gradient(
+      180deg,
+      #2A2A2A 0%,
+      #1F1F1F 8%,
+      #1A1A1A 45%,
+      #151515 55%,
+      #0F0F0F 92%,
+      #0A0A0A 100%
+    );
+  box-shadow:
+    0 25px 80px rgba(0,0,0,0.7),
+    0 10px 30px rgba(0,0,0,0.5),
+    0 0 60px rgba(255,69,0,0.05),
+    inset 0 1px 0 rgba(255,255,255,0.1),
+    inset 0 -1px 0 rgba(0,0,0,0.3);
 }
 
 /* Textura de grano metálico */

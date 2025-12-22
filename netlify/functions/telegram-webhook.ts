@@ -2,9 +2,17 @@ import { Handler } from '@netlify/functions';
 import { getSupabaseAdmin } from '../../lib/supabase';
 import {
   sendMessage,
+  sendMessageWithButtons,
+  answerCallbackQuery,
+  editMessageText,
   getHelpMessage,
   formatRequestsList,
+  formatRequestForTelegram,
   getUserByTelegramId,
+  createMainMenuButtons,
+  createRequestButtons,
+  createCompleteConfirmButtons,
+  InlineKeyboardMarkup,
 } from '../../lib/telegram';
 import { Request, ConversationStep, NewRequestData, CompleteRequestData } from '../../lib/types';
 import { differenceInDays, parseISO } from 'date-fns';
@@ -125,6 +133,15 @@ export const handler: Handler = async (event) => {
     const update = JSON.parse(event.body || '{}');
     console.log('Received update:', JSON.stringify(update, null, 2));
 
+    // Manejar callback queries (botones inline)
+    if (update.callback_query) {
+      await handleCallbackQuery(update.callback_query);
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ ok: true }),
+      };
+    }
+
     // Ignorar updates sin mensaje o sin texto
     if (!update.message || !update.message.text) {
       return {
@@ -178,7 +195,15 @@ export const handler: Handler = async (event) => {
         case '/start':
         case '/ayuda':
         case '/help':
-          await sendMessage(chatId, getHelpMessage());
+          await sendMessageWithButtons(chatId, getHelpMessage(), createMainMenuButtons());
+          break;
+
+        case '/menu':
+          await sendMessageWithButtons(
+            chatId,
+            '📋 *Menú Principal*\n\n¿Qué deseas hacer?',
+            createMainMenuButtons()
+          );
           break;
 
         case '/nuevopedido':
@@ -653,4 +678,134 @@ async function handleUrgenteCommand(chatId: number) {
 
   const message = formatRequestsList(urgent as Request[], 'Pedidos URGENTES');
   await sendMessage(chatId, message);
+}
+
+/**
+ * Maneja los callback queries (cuando se presionan botones inline)
+ */
+async function handleCallbackQuery(callbackQuery: any) {
+  const chatId = callbackQuery.message?.chat.id;
+  const messageId = callbackQuery.message?.message_id;
+  const userId = callbackQuery.from.id;
+  const data = callbackQuery.data;
+
+  console.log(`Callback from ${userId}: ${data}`);
+
+  // Verificar que el usuario esté autorizado
+  const user = await getUserByTelegramId(userId.toString(), getSupabase());
+  if (!user) {
+    await answerCallbackQuery(callbackQuery.id, '❌ No autorizado', true);
+    return;
+  }
+
+  try {
+    // Manejar diferentes acciones
+    if (data === 'view_all') {
+      await answerCallbackQuery(callbackQuery.id);
+      await handleVerCommand(chatId);
+    }
+    else if (data === 'my_requests') {
+      await answerCallbackQuery(callbackQuery.id);
+      await handleMiosCommand(chatId, user.id);
+    }
+    else if (data === 'urgent') {
+      await answerCallbackQuery(callbackQuery.id);
+      await handleUrgenteCommand(chatId);
+    }
+    else if (data === 'today') {
+      await answerCallbackQuery(callbackQuery.id);
+      await handleHoyCommand(chatId);
+    }
+    else if (data === 'week') {
+      await answerCallbackQuery(callbackQuery.id);
+      await handleSemanaCommand(chatId);
+    }
+    else if (data === 'new_request') {
+      await answerCallbackQuery(callbackQuery.id);
+      await handleNuevoPedidoCommand(chatId, userId.toString(), user.id);
+    }
+    else if (data.startsWith('complete_')) {
+      const requestId = data.replace('complete_', '');
+      await answerCallbackQuery(callbackQuery.id);
+
+      // Obtener el pedido
+      const { data: request } = await getSupabase()
+        .from('requests')
+        .select('*')
+        .eq('id', requestId)
+        .single();
+
+      if (request) {
+        const confirmMessage = `¿Completar este pedido?\n\n*${request.client}*\n${request.description}`;
+        const buttons = createCompleteConfirmButtons(requestId);
+        await editMessageText(chatId, messageId, confirmMessage, 'Markdown', buttons);
+      }
+    }
+    else if (data.startsWith('confirm_complete_')) {
+      const requestId = data.replace('confirm_complete_', '');
+      await answerCallbackQuery(callbackQuery.id, '✅ Completado!');
+
+      // Marcar como completado
+      const { data: updatedRequest, error } = await getSupabase()
+        .from('requests')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', requestId)
+        .select()
+        .single();
+
+      if (!error && updatedRequest) {
+        await editMessageText(
+          chatId,
+          messageId,
+          `✅ *Pedido completado!*\n\n${updatedRequest.client} - ${updatedRequest.description}\n\n🎉 ¡Buen trabajo!`,
+          'Markdown',
+          createMainMenuButtons()
+        );
+      }
+    }
+    else if (data.startsWith('details_')) {
+      const requestId = data.replace('details_', '');
+      await answerCallbackQuery(callbackQuery.id);
+
+      // Obtener detalles del pedido
+      const { data: request } = await getSupabase()
+        .from('requests')
+        .select('*')
+        .eq('id', requestId)
+        .single();
+
+      if (request) {
+        const details = formatRequestForTelegram(request as Request, true);
+        const buttons = createRequestButtons(requestId);
+        await sendMessageWithButtons(chatId, details, buttons);
+      }
+    }
+    else if (data === 'cancel_action') {
+      await answerCallbackQuery(callbackQuery.id, 'Cancelado');
+      await editMessageText(
+        chatId,
+        messageId,
+        '❌ Acción cancelada.',
+        'Markdown',
+        createMainMenuButtons()
+      );
+    }
+    else if (data === 'main_menu') {
+      await answerCallbackQuery(callbackQuery.id);
+      await sendMessageWithButtons(
+        chatId,
+        '📋 *Menú Principal*\n\n¿Qué deseas hacer?',
+        createMainMenuButtons()
+      );
+    }
+    else {
+      await answerCallbackQuery(callbackQuery.id, 'Acción no reconocida');
+    }
+  } catch (error) {
+    console.error('Error handling callback:', error);
+    await answerCallbackQuery(callbackQuery.id, '❌ Error', true);
+  }
 }
