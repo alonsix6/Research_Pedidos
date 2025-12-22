@@ -75,7 +75,7 @@ export default function StatsDisplay({
         <div className="grid grid-cols-3 gap-4">
           <StatItem label="TOTAL" value={total} color="cyan" />
           <StatItem label="ACTIVOS" value={active} color="orange" />
-          <StatItem label="LISTOS" value={completed} color="cyan" />
+          <StatItem label="LISTOS" value={completed} color="green" />
         </div>
 
         <LCDDivider />
@@ -114,7 +114,7 @@ function StatItem({
 }: {
   label: string;
   value: number;
-  color: 'cyan' | 'orange';
+  color: 'cyan' | 'orange' | 'green';
 }) {
   return (
     <div className="flex flex-col items-center">
