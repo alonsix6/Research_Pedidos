@@ -1,0 +1,10 @@
+# robots.txt for Reset R&A - Sistema de Pedidos
+# https://research-pedidos.netlify.app
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /.netlify/
+
+# Sitemap (if needed in the future)
+# Sitemap: https://research-pedidos.netlify.app/sitemap.xml

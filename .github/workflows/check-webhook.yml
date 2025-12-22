@@ -18,21 +18,29 @@ jobs:
           CURRENT_URL=$(echo "$WEBHOOK_INFO" | python3 -c "import sys, json; print(json.load(sys.stdin)['result'].get('url', ''))")
 
           echo "current_url=$CURRENT_URL" >> $GITHUB_OUTPUT
-          echo "📍 Current webhook URL: $CURRENT_URL"
+          echo "Current webhook URL: $CURRENT_URL"
+          echo "Expected webhook URL: ${{ secrets.SITE_URL }}/.netlify/functions/telegram-webhook"
 
       - name: Reconfigure webhook if needed
-        if: steps.check.outputs.current_url != 'https://research-pedidos.netlify.app/.netlify/functions/telegram-webhook'
+        if: steps.check.outputs.current_url != format('{0}/.netlify/functions/telegram-webhook', secrets.SITE_URL)
         run: |
-          echo "⚠️ Webhook is not configured correctly. Fixing..."
+          echo "Webhook is not configured correctly. Fixing..."
 
-          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/setWebhook" \
-            -H "Content-Type: application/json" \
-            -d '{"url": "https://research-pedidos.netlify.app/.netlify/functions/telegram-webhook"}'
+          # Build JSON payload with optional secret token
+          if [ -n "${{ secrets.TELEGRAM_WEBHOOK_SECRET }}" ]; then
+            curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/setWebhook" \
+              -H "Content-Type: application/json" \
+              -d "{\"url\": \"${{ secrets.SITE_URL }}/.netlify/functions/telegram-webhook\", \"secret_token\": \"${{ secrets.TELEGRAM_WEBHOOK_SECRET }}\"}"
+          else
+            curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/setWebhook" \
+              -H "Content-Type: application/json" \
+              -d "{\"url\": \"${{ secrets.SITE_URL }}/.netlify/functions/telegram-webhook\"}"
+          fi
 
-          echo "✅ Webhook reconfigured!"
+          echo "Webhook reconfigured!"
 
       - name: Verify webhook
         run: |
           WEBHOOK_INFO=$(curl -s "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/getWebhookInfo")
-          echo "📊 Final webhook info:"
+          echo "Final webhook info:"
           echo "$WEBHOOK_INFO" | python3 -m json.tool

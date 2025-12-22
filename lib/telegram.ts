@@ -1,5 +1,6 @@
-import { Request } from './types';
+import { Request, User } from './types';
 import { formatLimaDate, formatDaysLeft, getPriorityEmoji, getStatusEmoji } from './utils';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 const TELEGRAM_API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
 
@@ -14,11 +15,58 @@ export interface InlineKeyboardMarkup {
   inline_keyboard: InlineKeyboardButton[][];
 }
 
+// Tipos para respuestas de Telegram API
+interface TelegramResponse {
+  ok: boolean;
+  result?: unknown;
+  description?: string;
+}
+
+interface EditMessageBody {
+  chat_id: string | number;
+  message_id: number;
+  text: string;
+  parse_mode: string;
+  reply_markup?: InlineKeyboardMarkup;
+}
+
+/**
+ * Wrapper para fetch con retry exponential backoff
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries: number = 3
+): Promise<Response> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      return response;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Si no es el último intento, esperar con backoff exponencial
+      if (attempt < maxRetries - 1) {
+        const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError || new Error('Failed after retries');
+}
+
 /**
  * Envía un mensaje de texto a un chat
  */
-export async function sendMessage(chatId: string | number, text: string, parseMode: 'Markdown' | 'HTML' = 'Markdown') {
-  const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
+export async function sendMessage(
+  chatId: string | number,
+  text: string,
+  parseMode: 'Markdown' | 'HTML' = 'Markdown'
+): Promise<TelegramResponse> {
+  const response = await fetchWithRetry(`${TELEGRAM_API}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -30,11 +78,10 @@ export async function sendMessage(chatId: string | number, text: string, parseMo
 
   if (!response.ok) {
     const error = await response.text();
-    console.error('Error sending message:', error);
     throw new Error(`Failed to send message: ${error}`);
   }
 
-  return response.json();
+  return response.json() as Promise<TelegramResponse>;
 }
 
 /**
@@ -45,8 +92,8 @@ export async function sendMessageWithButtons(
   text: string,
   buttons: InlineKeyboardMarkup,
   parseMode: 'Markdown' | 'HTML' = 'Markdown'
-) {
-  const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
+): Promise<TelegramResponse> {
+  const response = await fetchWithRetry(`${TELEGRAM_API}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -59,11 +106,10 @@ export async function sendMessageWithButtons(
 
   if (!response.ok) {
     const error = await response.text();
-    console.error('Error sending message with buttons:', error);
     throw new Error(`Failed to send message: ${error}`);
   }
 
-  return response.json();
+  return response.json() as Promise<TelegramResponse>;
 }
 
 /**
@@ -73,8 +119,8 @@ export async function answerCallbackQuery(
   callbackQueryId: string,
   text?: string,
   showAlert: boolean = false
-) {
-  const response = await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+): Promise<TelegramResponse> {
+  const response = await fetchWithRetry(`${TELEGRAM_API}/answerCallbackQuery`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -84,12 +130,8 @@ export async function answerCallbackQuery(
     }),
   });
 
-  if (!response.ok) {
-    const error = await response.text();
-    console.error('Error answering callback:', error);
-  }
-
-  return response.json();
+  // Don't throw on error for callback queries, just return the response
+  return response.json() as Promise<TelegramResponse>;
 }
 
 /**
@@ -101,8 +143,8 @@ export async function editMessageText(
   text: string,
   parseMode: 'Markdown' | 'HTML' = 'Markdown',
   buttons?: InlineKeyboardMarkup
-) {
-  const body: any = {
+): Promise<TelegramResponse> {
+  const body: EditMessageBody = {
     chat_id: chatId,
     message_id: messageId,
     text,
@@ -113,18 +155,14 @@ export async function editMessageText(
     body.reply_markup = buttons;
   }
 
-  const response = await fetch(`${TELEGRAM_API}/editMessageText`, {
+  const response = await fetchWithRetry(`${TELEGRAM_API}/editMessageText`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
 
-  if (!response.ok) {
-    const error = await response.text();
-    console.error('Error editing message:', error);
-  }
-
-  return response.json();
+  // Don't throw on error for edit messages, just return the response
+  return response.json() as Promise<TelegramResponse>;
 }
 
 /**
@@ -269,7 +307,7 @@ Usa /ayuda para ver todos los comandos disponibles.
 /**
  * Valida que el mensaje venga de un usuario autorizado
  */
-export async function isAuthorizedUser(telegramId: string, supabase: any): Promise<boolean> {
+export async function isAuthorizedUser(telegramId: string, supabase: SupabaseClient): Promise<boolean> {
   const { data, error } = await supabase
     .from('users')
     .select('id')
@@ -282,17 +320,19 @@ export async function isAuthorizedUser(telegramId: string, supabase: any): Promi
 /**
  * Obtiene el usuario desde Telegram ID
  */
-export async function getUserByTelegramId(telegramId: string, supabase: any) {
+export async function getUserByTelegramId(
+  telegramId: string,
+  supabase: SupabaseClient
+): Promise<User | null> {
   const { data, error } = await supabase
     .from('users')
     .select('*')
     .eq('telegram_id', telegramId)
     .single();
 
-  if (error) {
-    console.error('Error fetching user:', error);
+  if (error || !data) {
     return null;
   }
 
-  return data;
+  return data as User;
 }

@@ -1,9 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { Request } from '@/lib/types';
 import { formatLimaDate, formatDaysLeft } from '@/lib/utils';
-import { Check, Pencil, Trash2, GripVertical } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Check, Pencil, Trash2, GripVertical, ChevronDown, ChevronUp } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { padVariants, springs } from '@/lib/animations';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -15,7 +16,12 @@ interface PedidoPadProps {
   onDelete?: (id: string) => void;
   compact?: boolean;
   isDraggable?: boolean;
+  /** Start collapsed - useful for large lists */
+  defaultCollapsed?: boolean;
 }
+
+// Threshold for auto-truncating long descriptions
+const DESCRIPTION_TRUNCATE_LENGTH = 100;
 
 export default function PedidoPad({
   request,
@@ -24,8 +30,11 @@ export default function PedidoPad({
   onDelete,
   compact = false,
   isDraggable = false,
+  defaultCollapsed = false,
 }: PedidoPadProps) {
+  const [isExpanded, setIsExpanded] = useState(!defaultCollapsed);
   const daysLeft = formatDaysLeft(request.deadline);
+  const isLongDescription = request.description.length > DESCRIPTION_TRUNCATE_LENGTH;
   const isUrgent = daysLeft.includes('Atrasado') || daysLeft.includes('HOY');
   const isCompleted = request.status === 'completed';
 
@@ -114,14 +123,56 @@ export default function PedidoPad({
           {request.client}
         </h3>
 
-        {/* Descripcion */}
+        {/* Descripcion - collapsible for long content */}
         {!compact && (
-          <p
-            className="text-[11px] mb-2 line-clamp-2"
-            style={{ color: '#B0B0B0' }}
-          >
-            {request.description}
-          </p>
+          <div className="mb-2">
+            <AnimatePresence initial={false}>
+              {isExpanded ? (
+                <motion.p
+                  key="expanded"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="text-[11px]"
+                  style={{ color: '#B0B0B0' }}
+                >
+                  {request.description}
+                </motion.p>
+              ) : (
+                <motion.p
+                  key="collapsed"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-[11px]"
+                  style={{ color: '#B0B0B0' }}
+                >
+                  {request.description.slice(0, DESCRIPTION_TRUNCATE_LENGTH)}
+                  {isLongDescription && '...'}
+                </motion.p>
+              )}
+            </AnimatePresence>
+            {isLongDescription && (
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="flex items-center gap-0.5 text-[9px] mt-1 hover:text-[#00E5FF] transition-colors"
+                style={{ color: '#666' }}
+                aria-expanded={isExpanded}
+                aria-label={isExpanded ? 'Contraer descripción' : 'Expandir descripción'}
+              >
+                {isExpanded ? (
+                  <>
+                    <ChevronUp size={10} />
+                    <span>Ver menos</span>
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown size={10} />
+                    <span>Ver más</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
         )}
 
         {/* Info */}
