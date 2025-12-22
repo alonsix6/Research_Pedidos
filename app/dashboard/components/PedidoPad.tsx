@@ -57,7 +57,7 @@ export default function PedidoPad({
   };
 
   return (
-    <motion.div
+    <motion.article
       ref={setNodeRef}
       style={style}
       className={`
@@ -72,6 +72,7 @@ export default function PedidoPad({
       whileHover={!isDragging ? "hover" : undefined}
       whileTap={!isDragging ? "tap" : undefined}
       layout
+      aria-label={`Pedido de ${request.client}: ${request.description.slice(0, 50)}${request.description.length > 50 ? '...' : ''}`}
     >
       {/* Drag handle */}
       {isDraggable && !isCompleted && (
@@ -99,6 +100,8 @@ export default function PedidoPad({
             : {}
         }
         transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+        role="status"
+        aria-label={`Prioridad: ${request.priority}${isUrgent ? ', urgente' : ''}`}
       />
 
       {/* Contenido */}
@@ -115,16 +118,16 @@ export default function PedidoPad({
         {!compact && (
           <p
             className="text-[11px] mb-2 line-clamp-2"
-            style={{ color: '#999' }}
+            style={{ color: '#B0B0B0' }}
           >
             {request.description}
           </p>
         )}
 
         {/* Info */}
-        <div className={`flex items-center gap-3 ${compact ? 'text-[8px]' : 'text-[9px]'}`} style={{ color: '#666' }}>
+        <div className={`flex items-center gap-3 ${compact ? 'text-[8px]' : 'text-[9px]'}`} style={{ color: '#949494' }}>
           <span>{request.requester_name}</span>
-          <span style={{ color: '#444' }}>|</span>
+          <span style={{ color: '#666' }} aria-hidden="true">|</span>
           <span>
             {isCompleted && request.completed_at
               ? formatLimaDate(request.completed_at)
@@ -189,18 +192,20 @@ export default function PedidoPad({
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={springs.bouncy}
+          role="status"
         >
           <motion.div
             initial={{ pathLength: 0 }}
             animate={{ pathLength: 1 }}
             transition={{ duration: 0.3, delay: 0.2 }}
+            aria-hidden="true"
           >
             <Check size={10} />
           </motion.div>
           <span className="uppercase tracking-wide">Completado</span>
         </motion.div>
       )}
-    </motion.div>
+    </motion.article>
   );
 }
 
@@ -232,12 +237,13 @@ function ActionButton({
     },
   };
 
-  const size = compact ? 'w-6 h-6' : 'w-7 h-7';
+  // WCAG: Minimum touch target 44px, but allow smaller with adequate spacing
+  const size = compact ? 'w-8 h-8' : 'w-9 h-9';
 
   return (
     <motion.button
       onClick={onClick}
-      title={title}
+      aria-label={title}
       className={`flex items-center justify-center ${size} rounded-sm`}
       style={{
         background: colors[color].bg,
