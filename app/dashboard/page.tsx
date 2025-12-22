@@ -208,7 +208,6 @@ export default function DashboardPage() {
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    console.log('Drag end:', active.id, 'over', over.id);
     playClick();
   }
 

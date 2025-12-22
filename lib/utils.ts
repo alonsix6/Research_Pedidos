@@ -48,9 +48,9 @@ export function parseNaturalDate(input: string): Date | null {
   const match = lowercaseInput.match(datePattern);
 
   if (match) {
-    const day = parseInt(match[1]);
-    const month = parseInt(match[2]) - 1; // JS months are 0-indexed
-    const year = match[3] ? parseInt(match[3]) : now.getFullYear();
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10) - 1; // JS months are 0-indexed
+    const year = match[3] ? parseInt(match[3], 10) : now.getFullYear();
 
     return new Date(year, month, day);
   }
@@ -69,7 +69,7 @@ export function parseNaturalDate(input: string): Date | null {
   const daysPattern = /^en\s+(\d+)\s+d[ií]as?$/;
   const daysMatch = lowercaseInput.match(daysPattern);
   if (daysMatch) {
-    return addDays(now, parseInt(daysMatch[1]));
+    return addDays(now, parseInt(daysMatch[1], 10));
   }
 
   return null;
