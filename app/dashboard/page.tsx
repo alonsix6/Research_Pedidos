@@ -41,6 +41,7 @@ import { useSettings } from '@/lib/hooks/useSettings';
 import { useAppSound } from '@/lib/hooks/useAppSound';
 import { useKeyboardShortcuts, createDashboardShortcuts } from '@/lib/hooks/useKeyboardShortcuts';
 import { useRealtimeRequests } from '@/lib/hooks/useRealtimeRequests';
+import { useTeamMembers } from '@/lib/hooks/useTeamMembers';
 import { useToast } from './components/Toast';
 
 // Device components
@@ -68,6 +69,10 @@ export default function DashboardPage() {
   const { settings, toggleSound, toggleCompactView } = useSettings();
   const { playClick, playSuccess, playWhoosh, playNotification } = useAppSound(settings.soundEnabled);
   const { showToast } = useToast();
+
+  // Team members
+  const { members: teamMembers } = useTeamMembers();
+  const [selectedMember, setSelectedMember] = useState<string | null>(null);
 
   // UI State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -213,9 +218,25 @@ export default function DashboardPage() {
     [requests]
   );
 
+  // Calculate requests by member
+  const requestsByMember = useMemo(() => {
+    const counts: Record<string, number> = {};
+    activeRequests.forEach((r) => {
+      if (r.assigned_to) {
+        counts[r.assigned_to] = (counts[r.assigned_to] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [activeRequests]);
+
   // Filter & Sort
   const filteredRequests = useMemo(() => {
     let result = [...activeRequests];
+
+    // Filter by selected team member
+    if (selectedMember !== null) {
+      result = result.filter((r) => r.assigned_to === selectedMember);
+    }
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -248,7 +269,7 @@ export default function DashboardPage() {
     });
 
     return result;
-  }, [activeRequests, searchQuery, settings.sortBy, settings.sortOrder]);
+  }, [activeRequests, selectedMember, searchQuery, settings.sortBy, settings.sortOrder]);
 
   const { urgent, thisWeek, later } = useMemo(() =>
     classifyByUrgency(filteredRequests),
@@ -310,6 +331,13 @@ export default function DashboardPage() {
             active={activeRequests.length}
             completed={completedRequests.length}
             urgent={urgent.length}
+            teamMembers={teamMembers}
+            selectedMember={selectedMember}
+            onMemberSelect={(memberId) => {
+              playClick();
+              setSelectedMember(memberId);
+            }}
+            requestsByMember={requestsByMember}
           />
         )}
       </div>
