@@ -75,7 +75,7 @@ export default function StatsDisplay({
         <div className="grid grid-cols-3 gap-4">
           <StatItem label="TOTAL" value={total} color="cyan" />
           <StatItem label="ACTIVOS" value={active} color="orange" />
-          <StatItem label="LISTOS" value={completed} color="green" />
+          <StatItem label="LISTOS" value={completed} color="cyan" />
         </div>
 
         <LCDDivider />
@@ -83,23 +83,23 @@ export default function StatsDisplay({
         {/* Fila inferior - Info adicional */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <LCDLabel color="orange">URGENTES</LCDLabel>
+            <LCDLabel color="orange">URG</LCDLabel>
             <LCDNumber value={urgent.toString().padStart(2, '0')} color="orange" size="sm" />
           </div>
 
           {/* Mostrar filtro activo */}
           <div className="flex items-center gap-2">
-            <span className="text-[8px] text-gray-500 uppercase tracking-wider">
+            <LCDLabel color="cyan">
               {selectedMember === null
-                ? 'VISTA: EQUIPO'
-                : `VISTA: ${teamMembers.find(m => m.id === selectedMember)?.name.toUpperCase() || ''}`
+                ? 'EQUIPO'
+                : teamMembers.find(m => m.id === selectedMember)?.name.toUpperCase() || ''
               }
-            </span>
+            </LCDLabel>
           </div>
 
           <div className="flex items-center gap-2">
-            <LCDLabel>TEAM</LCDLabel>
-            <LCDNumber value={teamMembers.length.toString().padStart(2, '0')} size="sm" />
+            <LCDLabel color="cyan">TEAM</LCDLabel>
+            <LCDNumber value={teamMembers.length.toString().padStart(2, '0')} color="cyan" size="sm" />
           </div>
         </div>
       </div>
@@ -114,11 +114,11 @@ function StatItem({
 }: {
   label: string;
   value: number;
-  color: 'cyan' | 'orange' | 'green';
+  color: 'cyan' | 'orange';
 }) {
   return (
     <div className="flex flex-col items-center">
-      <LCDLabel color={color === 'cyan' ? 'white' : color === 'orange' ? 'orange' : 'cyan'}>
+      <LCDLabel color="white">
         {label}
       </LCDLabel>
       <LCDNumber
