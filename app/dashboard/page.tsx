@@ -315,10 +315,10 @@ export default function DashboardPage() {
       {/* Header Section */}
       <header className="flex items-start justify-between p-4 pb-2">
         <div>
-          <h1 className="text-lg font-bold tracking-wide" style={{ color: '#1A1A1A' }}>
+          <h1 className="text-lg font-bold tracking-wide" style={{ color: 'var(--header-text)' }}>
             RESET R&A
           </h1>
-          <p className="text-[10px] uppercase tracking-wider flex items-center gap-2" style={{ color: '#595959' }}>
+          <p className="text-[10px] uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--footer-text)' }}>
             Sistema de Pedidos v2.0
             <span className="flex items-center gap-1">
               {isConnected ? (
