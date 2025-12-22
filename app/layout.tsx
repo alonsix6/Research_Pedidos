@@ -28,8 +28,7 @@ export const viewport: Viewport = {
   themeColor: "#FF4500",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // WCAG AA: Allow user scaling for accessibility
 };
 
 export default function RootLayout({
@@ -44,7 +43,13 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
-      <body>{children}</body>
+      <body>
+        {/* WCAG AA: Skip to main content link */}
+        <a href="#main-content" className="skip-link">
+          Saltar al contenido principal
+        </a>
+        {children}
+      </body>
     </html>
   );
 }

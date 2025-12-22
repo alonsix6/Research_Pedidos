@@ -309,12 +309,12 @@ export default function DashboardPage() {
       <TopBar isConnected={isConnected && !error} />
 
       {/* Header Section */}
-      <div className="flex items-start justify-between p-4 pb-2">
+      <header className="flex items-start justify-between p-4 pb-2">
         <div>
           <h1 className="text-lg font-bold tracking-wide" style={{ color: '#1A1A1A' }}>
             RESET R&A
           </h1>
-          <p className="text-[10px] uppercase tracking-wider flex items-center gap-2" style={{ color: '#666' }}>
+          <p className="text-[10px] uppercase tracking-wider flex items-center gap-2" style={{ color: '#595959' }}>
             Sistema de Pedidos v2.0
             <span className="flex items-center gap-1">
               {isConnected ? (
@@ -335,9 +335,11 @@ export default function DashboardPage() {
             </span>
           </p>
         </div>
-        <SpeakerGrille rows={6} cols={16} />
-      </div>
+        <SpeakerGrille rows={6} cols={16} aria-hidden="true" />
+      </header>
 
+      {/* Main content area - WCAG landmark */}
+      <main id="main-content" role="main" aria-label="Panel de pedidos">
       {/* LCD Stats Display */}
       <div className="px-4 py-2">
         {loading ? (
@@ -375,88 +377,92 @@ export default function DashboardPage() {
         }}
       >
         {/* Left controls */}
-        <div className="flex items-center gap-2">
+        <nav className="flex items-center gap-2" aria-label="Controles de visualización">
           <motion.button
             onClick={toggleSound}
-            className="w-8 h-8 flex items-center justify-center rounded-full"
+            className="w-11 h-11 flex items-center justify-center rounded-full"
             style={{
               background: 'linear-gradient(180deg, #4A4A4A 0%, #3A3A3A 100%)',
               boxShadow: '0 2px 0 #2A2A2A, inset 0 1px 0 rgba(255,255,255,0.1)',
             }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95, y: 1 }}
-            title={settings.soundEnabled ? 'Desactivar sonido (Alt+M)' : 'Activar sonido (Alt+M)'}
+            aria-label={settings.soundEnabled ? 'Desactivar sonido (Alt+M)' : 'Activar sonido (Alt+M)'}
+            aria-pressed={settings.soundEnabled}
           >
             {settings.soundEnabled ? (
-              <Volume2 size={12} className="text-[#00E5FF]" />
+              <Volume2 size={16} className="text-[#00E5FF]" aria-hidden="true" />
             ) : (
-              <VolumeX size={12} className="text-gray-500" />
+              <VolumeX size={16} className="text-gray-500" aria-hidden="true" />
             )}
           </motion.button>
 
           <motion.button
             onClick={toggleCompactView}
-            className="w-8 h-8 flex items-center justify-center rounded-full"
+            className="w-11 h-11 flex items-center justify-center rounded-full"
             style={{
               background: 'linear-gradient(180deg, #4A4A4A 0%, #3A3A3A 100%)',
               boxShadow: '0 2px 0 #2A2A2A, inset 0 1px 0 rgba(255,255,255,0.1)',
             }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95, y: 1 }}
-            title={settings.compactView ? 'Vista normal (Alt+C)' : 'Vista compacta (Alt+C)'}
+            aria-label={settings.compactView ? 'Cambiar a vista normal (Alt+C)' : 'Cambiar a vista compacta (Alt+C)'}
+            aria-pressed={settings.compactView}
           >
             {settings.compactView ? (
-              <List size={12} className="text-[#FF4500]" />
+              <List size={16} className="text-[#FF4500]" aria-hidden="true" />
             ) : (
-              <Grid size={12} className="text-gray-400" />
+              <Grid size={16} className="text-gray-400" aria-hidden="true" />
             )}
           </motion.button>
-        </div>
+        </nav>
 
         {/* Action buttons */}
-        <div className="flex items-center gap-2">
-          <Button3D variant="black" onClick={handleToggleSearch} className="flex items-center gap-2" title="Buscar (Alt+K)">
-            <Search size={14} />
+        <div className="flex items-center gap-2" role="group" aria-label="Acciones principales">
+          <Button3D variant="black" onClick={handleToggleSearch} aria-label="Buscar pedidos (Alt+K)" aria-expanded={isSearchOpen}>
+            <Search size={14} aria-hidden="true" />
+            <span className="sr-only">Buscar</span>
           </Button3D>
-          <Button3D variant="orange" onClick={handleOpenNewModal} className="flex items-center gap-2" title="Nuevo pedido (Alt+N)">
-            <Plus size={14} />
+          <Button3D variant="orange" onClick={handleOpenNewModal} aria-label="Crear nuevo pedido (Alt+N)">
+            <Plus size={14} aria-hidden="true" />
             NUEVO
           </Button3D>
-          <Button3D variant="black" onClick={handleRefresh} className="flex items-center gap-2" title="Refrescar (Alt+R)">
-            <RefreshCw size={14} />
+          <Button3D variant="black" onClick={handleRefresh} aria-label="Refrescar datos (Alt+R)">
+            <RefreshCw size={14} aria-hidden="true" />
+            <span className="sr-only">Refrescar</span>
           </Button3D>
         </div>
 
         {/* Right controls */}
-        <div className="flex items-center gap-2">
+        <nav className="flex items-center gap-2" aria-label="Controles adicionales">
           <motion.button
             onClick={() => { playClick(); setIsHistoryOpen(true); }}
-            className="w-8 h-8 flex items-center justify-center rounded-full"
+            className="w-11 h-11 flex items-center justify-center rounded-full"
             style={{
               background: 'linear-gradient(180deg, #4A4A4A 0%, #3A3A3A 100%)',
               boxShadow: '0 2px 0 #2A2A2A, inset 0 1px 0 rgba(255,255,255,0.1)',
             }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95, y: 1 }}
-            title="Historial de completados"
+            aria-label="Ver historial de pedidos completados"
           >
-            <History size={12} className="text-gray-400" />
+            <History size={16} className="text-gray-400" aria-hidden="true" />
           </motion.button>
 
           <motion.button
             onClick={handleShowHelp}
-            className="w-8 h-8 flex items-center justify-center rounded-full"
+            className="w-11 h-11 flex items-center justify-center rounded-full"
             style={{
               background: 'linear-gradient(180deg, #4A4A4A 0%, #3A3A3A 100%)',
               boxShadow: '0 2px 0 #2A2A2A, inset 0 1px 0 rgba(255,255,255,0.1)',
             }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95, y: 1 }}
-            title="Atajos de teclado (Alt+/)"
+            aria-label="Ver atajos de teclado (Alt+/)"
           >
-            <Keyboard size={12} className="text-gray-400" />
+            <Keyboard size={16} className="text-gray-400" aria-hidden="true" />
           </motion.button>
-        </div>
+        </nav>
       </div>
 
       {/* Search & Filter */}
@@ -626,37 +632,45 @@ export default function DashboardPage() {
 
           {/* Empty state */}
           {!loading && activeRequests.length === 0 && (
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="lcd-screen p-8 text-center">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="lcd-screen p-8 text-center" role="status" aria-live="polite">
               <p className="lcd-number text-lg mb-2">NO DATA</p>
-              <p className="text-[#666] text-xs mb-4">No hay pedidos activos</p>
-              <Button3D variant="orange" onClick={handleOpenNewModal}>CREAR PRIMER PEDIDO</Button3D>
+              <p className="text-[#949494] text-xs mb-4">No hay pedidos activos</p>
+              <Button3D variant="orange" onClick={handleOpenNewModal} aria-label="Crear el primer pedido">CREAR PRIMER PEDIDO</Button3D>
             </motion.div>
           )}
 
           {/* Search no results */}
           {!loading && searchQuery && filteredRequests.length === 0 && activeRequests.length > 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="lcd-screen p-6 text-center">
-              <Search size={24} className="mx-auto mb-3 text-gray-600" />
-              <p className="text-sm text-gray-400 mb-1">No se encontraron resultados</p>
-              <p className="text-xs text-gray-600">
-                Intenta con otra busqueda o{' '}
-                <button onClick={() => setSearchQuery('')} className="text-[#00E5FF] hover:underline">limpia el filtro</button>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="lcd-screen p-6 text-center" role="status" aria-live="polite">
+              <Search size={24} className="mx-auto mb-3 text-[#949494]" aria-hidden="true" />
+              <p className="text-sm text-[#B0B0B0] mb-1">No se encontraron resultados</p>
+              <p className="text-xs text-[#949494]">
+                Intenta con otra búsqueda o{' '}
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-[#00E5FF] hover:underline focus:outline-none focus:ring-2 focus:ring-[#FF4500] focus:ring-offset-2 focus:ring-offset-[#131313] rounded"
+                  aria-label="Limpiar filtro de búsqueda"
+                >
+                  limpia el filtro
+                </button>
               </p>
             </motion.div>
           )}
         </DndContext>
       </div>
+      </main>
 
       {/* Footer */}
-      <div
+      <footer
         className="flex items-center justify-between px-4 py-3 mt-4"
         style={{
           background: 'linear-gradient(180deg, #B8B8B8 0%, #A8A8A8 100%)',
           borderTop: '1px solid rgba(255,255,255,0.3)',
         }}
+        role="contentinfo"
       >
-        <div className="flex items-center gap-2 text-[10px]" style={{ color: '#555' }}>
-          <Lightbulb size={12} />
+        <div className="flex items-center gap-2 text-[10px]" style={{ color: '#595959' }}>
+          <Lightbulb size={12} aria-hidden="true" />
           <span>TIP: Presiona Alt+/ para ver los atajos de teclado</span>
         </div>
         <a
@@ -664,12 +678,13 @@ export default function DashboardPage() {
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1 text-[10px] hover:text-[#FF4500] transition-colors"
-          style={{ color: '#555' }}
+          style={{ color: '#595959' }}
+          aria-label="Abrir bot de Telegram @Research_Pedidos_bot en nueva ventana"
         >
-          <MessageSquare size={12} />
+          <MessageSquare size={12} aria-hidden="true" />
           @Research_Pedidos_bot
         </a>
-      </div>
+      </footer>
 
       {/* Modals */}
       <PedidoModal
