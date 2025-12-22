@@ -229,6 +229,30 @@ export default function DashboardPage() {
     return counts;
   }, [activeRequests]);
 
+  // Filtered stats for LCD display
+  const filteredStats = useMemo(() => {
+    if (selectedMember === null) {
+      return {
+        total: requests.length,
+        active: activeRequests.length,
+        completed: completedRequests.length,
+        urgent: activeRequests.filter(r => r.priority === 'urgent' || r.priority === 'high').length,
+      };
+    }
+
+    const memberRequests = requests.filter(r => r.assigned_to === selectedMember);
+    const memberActive = memberRequests.filter(r => r.status === 'pending' || r.status === 'in_progress');
+    const memberCompleted = memberRequests.filter(r => r.status === 'completed');
+    const memberUrgent = memberActive.filter(r => r.priority === 'urgent' || r.priority === 'high');
+
+    return {
+      total: memberRequests.length,
+      active: memberActive.length,
+      completed: memberCompleted.length,
+      urgent: memberUrgent.length,
+    };
+  }, [requests, activeRequests, completedRequests, selectedMember]);
+
   // Filter & Sort
   const filteredRequests = useMemo(() => {
     let result = [...activeRequests];
@@ -327,10 +351,10 @@ export default function DashboardPage() {
           </div>
         ) : (
           <StatsDisplay
-            total={requests.length}
-            active={activeRequests.length}
-            completed={completedRequests.length}
-            urgent={urgent.length}
+            total={filteredStats.total}
+            active={filteredStats.active}
+            completed={filteredStats.completed}
+            urgent={filteredStats.urgent}
             teamMembers={teamMembers}
             selectedMember={selectedMember}
             onMemberSelect={(memberId) => {
