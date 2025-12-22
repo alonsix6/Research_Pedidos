@@ -23,6 +23,7 @@ import {
   Sun,
   Moon,
 } from 'lucide-react';
+import ErrorBoundary from './components/ErrorBoundary';
 import {
   DndContext,
   closestCenter,
@@ -308,6 +309,7 @@ export default function DashboardPage() {
   const hasMoreCompleted = completedRequests.length > MAX_VISIBLE_COMPLETED;
 
   return (
+    <ErrorBoundary>
     <DeviceFrame>
       {/* Top Bar with connection indicator */}
       <TopBar isConnected={isConnected && !error} />
@@ -723,5 +725,6 @@ export default function DashboardPage() {
       <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
       <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
     </DeviceFrame>
+    </ErrorBoundary>
   );
 }

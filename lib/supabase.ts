@@ -58,8 +58,8 @@ export const getSupabaseClient = () => {
 // Export con getter para compatibilidad (lazy initialization)
 // Esto permite que el código existente que usa `supabase` siga funcionando
 export const supabase = new Proxy({} as SupabaseClient, {
-  get(target, prop) {
+  get(_target, prop: string | symbol) {
     const client = getSupabase();
-    return (client as any)[prop];
+    return client[prop as keyof SupabaseClient];
   }
 });

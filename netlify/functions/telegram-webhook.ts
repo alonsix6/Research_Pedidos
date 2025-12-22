@@ -1,4 +1,6 @@
 import { Handler } from '@netlify/functions';
+import { SupabaseClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
 import { getSupabaseAdmin } from '../../lib/supabase';
 import {
   sendMessage,
@@ -14,12 +16,37 @@ import {
   createCompleteConfirmButtons,
   InlineKeyboardMarkup,
 } from '../../lib/telegram';
-import { Request, ConversationStep, NewRequestData, CompleteRequestData } from '../../lib/types';
-import { differenceInDays, parseISO } from 'date-fns';
+import { Request, ConversationStep, NewRequestData, CompleteRequestData, User } from '../../lib/types';
+import { differenceInDays, parseISO, differenceInMinutes } from 'date-fns';
 import { parseNaturalDate, calculatePriority, getPriorityEmoji, formatLimaDate } from '../../lib/utils';
 
 // Cliente de Supabase con service role (lazy-initialized)
-const getSupabase = () => getSupabaseAdmin();
+const getSupabase = (): SupabaseClient => getSupabaseAdmin();
+
+// Rate limiting: máximo 3 pedidos cada 10 minutos por usuario
+const RATE_LIMIT_MAX_REQUESTS = 3;
+const RATE_LIMIT_WINDOW_MINUTES = 10;
+
+// Timeout de conversación: 30 minutos
+const CONVERSATION_TIMEOUT_MINUTES = 30;
+
+// ===== Tipos para callback query =====
+interface TelegramCallbackQuery {
+  id: string;
+  from: {
+    id: number;
+    first_name: string;
+    username?: string;
+  };
+  message?: {
+    message_id: number;
+    chat: {
+      id: number;
+      type: string;
+    };
+  };
+  data?: string;
+}
 
 // ===== Funciones de conversación (inline para Netlify) =====
 
@@ -28,12 +55,13 @@ interface ConversationState {
   userId: string;
   step: ConversationStep;
   data: NewRequestData | CompleteRequestData;
+  updated_at?: string;
 }
 
 async function getConversationState(
   chatId: string,
   userId: string,
-  supabase: any
+  supabase: SupabaseClient
 ): Promise<ConversationState | null> {
   const { data, error } = await supabase
     .from('conversation_state')
@@ -51,12 +79,13 @@ async function getConversationState(
     userId: data.user_id,
     step: data.step as ConversationStep,
     data: data.data as NewRequestData,
+    updated_at: data.updated_at,
   };
 }
 
 async function saveConversationState(
   state: ConversationState,
-  supabase: any
+  supabase: SupabaseClient
 ): Promise<void> {
   const { error } = await supabase
     .from('conversation_state')
@@ -69,7 +98,6 @@ async function saveConversationState(
     });
 
   if (error) {
-    console.error('Error saving conversation state:', error);
     throw error;
   }
 }
@@ -77,13 +105,80 @@ async function saveConversationState(
 async function clearConversationState(
   chatId: string,
   userId: string,
-  supabase: any
+  supabase: SupabaseClient
 ): Promise<void> {
   await supabase
     .from('conversation_state')
     .delete()
     .eq('chat_id', chatId.toString())
     .eq('user_id', userId.toString());
+}
+
+/**
+ * Limpia conversaciones expiradas (más de 30 minutos sin actividad)
+ */
+async function cleanupExpiredConversations(supabase: SupabaseClient): Promise<void> {
+  const expirationTime = new Date(Date.now() - CONVERSATION_TIMEOUT_MINUTES * 60 * 1000).toISOString();
+
+  await supabase
+    .from('conversation_state')
+    .delete()
+    .lt('updated_at', expirationTime);
+}
+
+/**
+ * Verifica si una conversación ha expirado
+ */
+function isConversationExpired(state: ConversationState): boolean {
+  if (!state.updated_at) return false;
+
+  const minutesSinceUpdate = differenceInMinutes(new Date(), parseISO(state.updated_at));
+  return minutesSinceUpdate > CONVERSATION_TIMEOUT_MINUTES;
+}
+
+/**
+ * Verifica rate limiting para /nuevopedido
+ */
+async function checkRateLimit(userId: string, supabase: SupabaseClient): Promise<{ allowed: boolean; remaining: number }> {
+  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MINUTES * 60 * 1000).toISOString();
+
+  const { count } = await supabase
+    .from('requests')
+    .select('*', { count: 'exact', head: true })
+    .eq('created_by', userId)
+    .gte('created_at', windowStart);
+
+  const requestCount = count || 0;
+  const remaining = Math.max(0, RATE_LIMIT_MAX_REQUESTS - requestCount);
+
+  return {
+    allowed: requestCount < RATE_LIMIT_MAX_REQUESTS,
+    remaining,
+  };
+}
+
+/**
+ * Obtiene los IDs de usuarios del equipo en una sola query (evita N+1)
+ */
+async function getTeamMemberIds(supabase: SupabaseClient): Promise<Record<string, string | null>> {
+  const { data: users } = await supabase
+    .from('users')
+    .select('id, name')
+    .in('name', ['Sol', 'Estef', 'Alonso']);
+
+  const memberIds: Record<string, string | null> = {
+    Sol: null,
+    Estef: null,
+    Alonso: null,
+  };
+
+  if (users) {
+    users.forEach((user: { id: string; name: string }) => {
+      memberIds[user.name] = user.id;
+    });
+  }
+
+  return memberIds;
 }
 
 const conversationMessages = {
@@ -116,9 +211,36 @@ const conversationMessages = {
   invalidDate: '⚠️ No pude entender esa fecha. Usa formatos como:\n• "25/12" o "25/12/2024"\n• "hoy", "mañana"\n• "en 3 días"',
 
   invalidAssignment: '⚠️ Por favor responde con 1, 2, 3 o 4.',
+
+  conversationExpired: '⏰ Tu sesión ha expirado por inactividad. Usa /nuevopedido para comenzar de nuevo.',
+
+  rateLimited: (remaining: number) =>
+    `⚠️ Has alcanzado el límite de ${RATE_LIMIT_MAX_REQUESTS} pedidos en ${RATE_LIMIT_WINDOW_MINUTES} minutos. Espera un momento antes de crear más pedidos.`,
 };
 
 // ===== Fin funciones de conversación =====
+
+/**
+ * Valida la firma del webhook de Telegram
+ * https://core.telegram.org/bots/api#setwebhook
+ */
+function validateWebhookSignature(body: string, secretToken: string | undefined, headerToken: string | undefined): boolean {
+  // Si no hay secret token configurado, permitir (para compatibilidad)
+  if (!secretToken) {
+    return true;
+  }
+
+  // Si hay secret token pero no viene el header, rechazar
+  if (!headerToken) {
+    return false;
+  }
+
+  // Comparar tokens
+  return crypto.timingSafeEqual(
+    Buffer.from(secretToken),
+    Buffer.from(headerToken)
+  );
+}
 
 export const handler: Handler = async (event) => {
   // Solo aceptar POST requests
@@ -129,13 +251,28 @@ export const handler: Handler = async (event) => {
     };
   }
 
+  // Validar firma del webhook (si está configurado TELEGRAM_WEBHOOK_SECRET)
+  const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  const headerSecret = event.headers['x-telegram-bot-api-secret-token'];
+
+  if (!validateWebhookSignature(event.body || '', webhookSecret, headerSecret)) {
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ error: 'Unauthorized' }),
+    };
+  }
+
   try {
     const update = JSON.parse(event.body || '{}');
-    console.log('Received update:', JSON.stringify(update, null, 2));
+
+    // Limpiar conversaciones expiradas periódicamente (1% de las requests)
+    if (Math.random() < 0.01) {
+      await cleanupExpiredConversations(getSupabase());
+    }
 
     // Manejar callback queries (botones inline)
     if (update.callback_query) {
-      await handleCallbackQuery(update.callback_query);
+      await handleCallbackQuery(update.callback_query as TelegramCallbackQuery);
       return {
         statusCode: 200,
         body: JSON.stringify({ ok: true }),
@@ -154,9 +291,6 @@ export const handler: Handler = async (event) => {
     const chatId = message.chat.id;
     const userId = message.from.id;
     const text = message.text.trim();
-    const username = message.from.username || message.from.first_name;
-
-    console.log(`Message from ${username} (${userId}): ${text}`);
 
     // Verificar que el usuario esté autorizado
     const user = await getUserByTelegramId(userId.toString(), getSupabase());
@@ -177,6 +311,16 @@ export const handler: Handler = async (event) => {
       userId.toString(),
       getSupabase()
     );
+
+    // Si hay conversación pero está expirada, limpiarla
+    if (conversationState && isConversationExpired(conversationState)) {
+      await clearConversationState(chatId.toString(), userId.toString(), getSupabase());
+      await sendMessage(chatId, conversationMessages.conversationExpired);
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ ok: true }),
+      };
+    }
 
     // Si hay conversación activa y el mensaje NO es /cancelar
     if (conversationState && conversationState.step !== 'idle' && !text.startsWith('/cancelar')) {
@@ -256,7 +400,10 @@ export const handler: Handler = async (event) => {
       body: JSON.stringify({ ok: true }),
     };
   } catch (error) {
-    console.error('Error processing update:', error);
+    // Log error para debugging (solo en desarrollo)
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error processing update:', error);
+    }
     return {
       statusCode: 500,
       body: JSON.stringify({ error: 'Internal server error' }),
@@ -268,6 +415,14 @@ export const handler: Handler = async (event) => {
  * Comando /nuevopedido - Inicia el flujo conversacional
  */
 async function handleNuevoPedidoCommand(chatId: number, userId: string, userDbId: string) {
+  // Verificar rate limit
+  const { allowed, remaining } = await checkRateLimit(userDbId, getSupabase());
+
+  if (!allowed) {
+    await sendMessage(chatId, conversationMessages.rateLimited(remaining));
+    return;
+  }
+
   // Iniciar nueva conversación
   await saveConversationState(
     {
@@ -289,20 +444,21 @@ async function handleConversationFlow(
   chatId: number,
   userId: string,
   text: string,
-  state: any,
-  user: any
+  state: ConversationState,
+  user: User
 ) {
   const { step, data } = state;
+  const requestData = data as NewRequestData;
 
   switch (step) {
     case 'awaiting_client':
-      data.client = text;
+      requestData.client = text;
       await saveConversationState(
         {
           chatId: chatId.toString(),
           userId,
           step: 'awaiting_description',
-          data,
+          data: requestData,
         },
         getSupabase()
       );
@@ -310,13 +466,13 @@ async function handleConversationFlow(
       break;
 
     case 'awaiting_description':
-      data.description = text;
+      requestData.description = text;
       await saveConversationState(
         {
           chatId: chatId.toString(),
           userId,
           step: 'awaiting_requester',
-          data,
+          data: requestData,
         },
         getSupabase()
       );
@@ -324,19 +480,19 @@ async function handleConversationFlow(
       break;
 
     case 'awaiting_requester':
-      data.requester_name = text;
+      requestData.requester_name = text;
       // Separar nombre y rol si viene en formato "Nombre, Rol"
       const parts = text.split(',');
       if (parts.length > 1) {
-        data.requester_name = parts[0].trim();
-        data.requester_role = parts[1].trim();
+        requestData.requester_name = parts[0].trim();
+        requestData.requester_role = parts[1].trim();
       }
       await saveConversationState(
         {
           chatId: chatId.toString(),
           userId,
           step: 'awaiting_deadline',
-          data,
+          data: requestData,
         },
         getSupabase()
       );
@@ -349,14 +505,14 @@ async function handleConversationFlow(
         await sendMessage(chatId, conversationMessages.invalidDate);
         return;
       }
-      data.deadline = parsedDate.toISOString();
+      requestData.deadline = parsedDate.toISOString();
       const formatted = formatLimaDate(parsedDate);
       await saveConversationState(
         {
           chatId: chatId.toString(),
           userId,
           step: 'awaiting_assigned',
-          data,
+          data: requestData,
         },
         getSupabase()
       );
@@ -364,34 +520,21 @@ async function handleConversationFlow(
       break;
 
     case 'awaiting_assigned':
-      let assignedTo = null;
+      // Obtener todos los IDs de miembros en una sola query
+      const teamMemberIds = await getTeamMemberIds(getSupabase());
+
+      let assignedTo: string | null = null;
       let assignedName = 'Sin asignar';
 
       if (text === '1') {
         assignedName = 'Sol';
-        // Buscar ID de Sol en la DB
-        const { data: solUser } = await getSupabase()
-          .from('users')
-          .select('id')
-          .eq('name', 'Sol')
-          .single();
-        assignedTo = solUser?.id || null;
+        assignedTo = teamMemberIds.Sol;
       } else if (text === '2') {
         assignedName = 'Estef';
-        const { data: estefUser } = await getSupabase()
-          .from('users')
-          .select('id')
-          .eq('name', 'Estef')
-          .single();
-        assignedTo = estefUser?.id || null;
+        assignedTo = teamMemberIds.Estef;
       } else if (text === '3') {
         assignedName = 'Alonso';
-        const { data: alonsoUser } = await getSupabase()
-          .from('users')
-          .select('id')
-          .eq('name', 'Alonso')
-          .single();
-        assignedTo = alonsoUser?.id || null;
+        assignedTo = teamMemberIds.Alonso;
       } else if (text === '4') {
         assignedName = 'Sin asignar';
         assignedTo = null;
@@ -401,25 +544,24 @@ async function handleConversationFlow(
       }
 
       // Guardar el pedido en la DB
-      const priority = calculatePriority(data.deadline!);
+      const priority = calculatePriority(requestData.deadline!);
       const emoji = getPriorityEmoji(priority);
 
       const { error } = await getSupabase()
         .from('requests')
         .insert({
-          client: data.client,
-          description: data.description,
-          requester_name: data.requester_name,
-          requester_role: data.requester_role || '',
+          client: requestData.client,
+          description: requestData.description,
+          requester_name: requestData.requester_name,
+          requester_role: requestData.requester_role || '',
           assigned_to: assignedTo,
-          deadline: data.deadline,
+          deadline: requestData.deadline,
           status: 'pending',
           priority: priority,
           created_by: user.id,
         });
 
       if (error) {
-        console.error('Error creating request:', error);
         await sendMessage(chatId, '❌ Error al crear el pedido. Por favor intenta de nuevo.');
         await clearConversationState(chatId.toString(), userId, getSupabase());
         return;
@@ -431,13 +573,14 @@ async function handleConversationFlow(
       // Enviar confirmación
       await sendMessage(
         chatId,
-        conversationMessages.summary(data, assignedName, priority, emoji)
+        conversationMessages.summary(requestData, assignedName, priority, emoji)
       );
       break;
 
     case 'awaiting_complete_selection':
+      const completeData = state.data as CompleteRequestData;
       const selectionNum = parseInt(text, 10);
-      const requestIds = state.data.requestIds as string[];
+      const requestIds = completeData.requestIds || [];
 
       if (isNaN(selectionNum) || selectionNum < 1 || selectionNum > requestIds.length) {
         await sendMessage(
@@ -461,7 +604,6 @@ async function handleConversationFlow(
         .single();
 
       if (updateError) {
-        console.error('Error completing request:', updateError);
         await sendMessage(chatId, '❌ Error al completar el pedido. Intenta de nuevo.');
         await clearConversationState(chatId.toString(), userId, getSupabase());
         return;
@@ -491,7 +633,6 @@ async function handleCompletarCommand(chatId: number, userId: string) {
     .limit(10);
 
   if (error) {
-    console.error('Error fetching requests:', error);
     await sendMessage(chatId, '❌ Error al obtener los pedidos. Intenta de nuevo.');
     return;
   }
@@ -535,7 +676,6 @@ async function handleVerCommand(chatId: number) {
     .order('deadline', { ascending: true });
 
   if (error) {
-    console.error('Error fetching requests:', error);
     await sendMessage(chatId, '❌ Error al obtener los pedidos. Intenta de nuevo.');
     return;
   }
@@ -561,7 +701,6 @@ async function handleMiosCommand(chatId: number, userId: string) {
     .order('deadline', { ascending: true });
 
   if (error) {
-    console.error('Error fetching user requests:', error);
     await sendMessage(chatId, '❌ Error al obtener tus pedidos. Intenta de nuevo.');
     return;
   }
@@ -585,7 +724,6 @@ async function handleHoyCommand(chatId: number) {
     .in('status', ['pending', 'in_progress']);
 
   if (error) {
-    console.error('Error fetching today requests:', error);
     await sendMessage(chatId, '❌ Error al obtener los pedidos. Intenta de nuevo.');
     return;
   }
@@ -620,7 +758,6 @@ async function handleSemanaCommand(chatId: number) {
     .in('status', ['pending', 'in_progress']);
 
   if (error) {
-    console.error('Error fetching week requests:', error);
     await sendMessage(chatId, '❌ Error al obtener los pedidos. Intenta de nuevo.');
     return;
   }
@@ -655,7 +792,6 @@ async function handleUrgenteCommand(chatId: number) {
     .in('status', ['pending', 'in_progress']);
 
   if (error) {
-    console.error('Error fetching urgent requests:', error);
     await sendMessage(chatId, '❌ Error al obtener los pedidos. Intenta de nuevo.');
     return;
   }
@@ -683,13 +819,16 @@ async function handleUrgenteCommand(chatId: number) {
 /**
  * Maneja los callback queries (cuando se presionan botones inline)
  */
-async function handleCallbackQuery(callbackQuery: any) {
+async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery) {
   const chatId = callbackQuery.message?.chat.id;
   const messageId = callbackQuery.message?.message_id;
   const userId = callbackQuery.from.id;
   const data = callbackQuery.data;
 
-  console.log(`Callback from ${userId}: ${data}`);
+  if (!chatId || !data) {
+    await answerCallbackQuery(callbackQuery.id, '❌ Error', true);
+    return;
+  }
 
   // Verificar que el usuario esté autorizado
   const user = await getUserByTelegramId(userId.toString(), getSupabase());
@@ -726,6 +865,13 @@ async function handleCallbackQuery(callbackQuery: any) {
     }
     else if (data.startsWith('complete_')) {
       const requestId = data.replace('complete_', '');
+
+      // Validar que el requestId sea un UUID válido
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+        await answerCallbackQuery(callbackQuery.id, '❌ ID inválido', true);
+        return;
+      }
+
       await answerCallbackQuery(callbackQuery.id);
 
       // Obtener el pedido
@@ -735,7 +881,7 @@ async function handleCallbackQuery(callbackQuery: any) {
         .eq('id', requestId)
         .single();
 
-      if (request) {
+      if (request && messageId) {
         const confirmMessage = `¿Completar este pedido?\n\n*${request.client}*\n${request.description}`;
         const buttons = createCompleteConfirmButtons(requestId);
         await editMessageText(chatId, messageId, confirmMessage, 'Markdown', buttons);
@@ -743,6 +889,13 @@ async function handleCallbackQuery(callbackQuery: any) {
     }
     else if (data.startsWith('confirm_complete_')) {
       const requestId = data.replace('confirm_complete_', '');
+
+      // Validar UUID
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+        await answerCallbackQuery(callbackQuery.id, '❌ ID inválido', true);
+        return;
+      }
+
       await answerCallbackQuery(callbackQuery.id, '✅ Completado!');
 
       // Marcar como completado
@@ -756,7 +909,7 @@ async function handleCallbackQuery(callbackQuery: any) {
         .select()
         .single();
 
-      if (!error && updatedRequest) {
+      if (!error && updatedRequest && messageId) {
         await editMessageText(
           chatId,
           messageId,
@@ -768,6 +921,13 @@ async function handleCallbackQuery(callbackQuery: any) {
     }
     else if (data.startsWith('details_')) {
       const requestId = data.replace('details_', '');
+
+      // Validar UUID
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+        await answerCallbackQuery(callbackQuery.id, '❌ ID inválido', true);
+        return;
+      }
+
       await answerCallbackQuery(callbackQuery.id);
 
       // Obtener detalles del pedido
@@ -785,13 +945,15 @@ async function handleCallbackQuery(callbackQuery: any) {
     }
     else if (data === 'cancel_action') {
       await answerCallbackQuery(callbackQuery.id, 'Cancelado');
-      await editMessageText(
-        chatId,
-        messageId,
-        '❌ Acción cancelada.',
-        'Markdown',
-        createMainMenuButtons()
-      );
+      if (messageId) {
+        await editMessageText(
+          chatId,
+          messageId,
+          '❌ Acción cancelada.',
+          'Markdown',
+          createMainMenuButtons()
+        );
+      }
     }
     else if (data === 'main_menu') {
       await answerCallbackQuery(callbackQuery.id);
@@ -805,7 +967,6 @@ async function handleCallbackQuery(callbackQuery: any) {
       await answerCallbackQuery(callbackQuery.id, 'Acción no reconocida');
     }
   } catch (error) {
-    console.error('Error handling callback:', error);
     await answerCallbackQuery(callbackQuery.id, '❌ Error', true);
   }
 }

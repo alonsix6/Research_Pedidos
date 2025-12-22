@@ -1,4 +1,5 @@
-import { ConversationStep, NewRequestData } from './types';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { ConversationStep, NewRequestData, CompleteRequestData } from './types';
 
 /**
  * Helper para gestionar el estado de conversaciones
@@ -7,7 +8,7 @@ export interface ConversationState {
   chatId: string;
   userId: string;
   step: ConversationStep;
-  data: NewRequestData;
+  data: NewRequestData | CompleteRequestData;
 }
 
 /**
@@ -16,7 +17,7 @@ export interface ConversationState {
 export async function getConversationState(
   chatId: string,
   userId: string,
-  supabase: any
+  supabase: SupabaseClient
 ): Promise<ConversationState | null> {
   const { data, error } = await supabase
     .from('conversation_state')
@@ -42,7 +43,7 @@ export async function getConversationState(
  */
 export async function saveConversationState(
   state: ConversationState,
-  supabase: any
+  supabase: SupabaseClient
 ): Promise<void> {
   const { error } = await supabase
     .from('conversation_state')
@@ -55,7 +56,6 @@ export async function saveConversationState(
     });
 
   if (error) {
-    console.error('Error saving conversation state:', error);
     throw error;
   }
 }
@@ -66,7 +66,7 @@ export async function saveConversationState(
 export async function clearConversationState(
   chatId: string,
   userId: string,
-  supabase: any
+  supabase: SupabaseClient
 ): Promise<void> {
   await supabase
     .from('conversation_state')

@@ -1,6 +1,7 @@
 import { format, parseISO, addDays, differenceInDays } from 'date-fns';
 import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
 import { es } from 'date-fns/locale';
+import { Request, RequestPriority } from './types';
 
 // Timezone de Lima, Perú
 export const LIMA_TIMEZONE = 'America/Lima';
@@ -77,7 +78,7 @@ export function parseNaturalDate(input: string): Date | null {
 /**
  * Calcula la prioridad según días restantes
  */
-export function calculatePriority(deadline: string): 'urgent' | 'high' | 'normal' | 'low' {
+export function calculatePriority(deadline: string): RequestPriority {
   const daysLeft = differenceInDays(parseISO(deadline), new Date());
 
   if (daysLeft < 0) return 'urgent'; // Ya venció
@@ -129,7 +130,7 @@ export function formatDaysLeft(deadline: string): string {
 /**
  * Clasifica requests por urgencia
  */
-export function classifyByUrgency(requests: any[]) {
+export function classifyByUrgency(requests: Request[]) {
   const now = new Date();
 
   return {

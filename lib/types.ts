@@ -37,7 +37,7 @@ export interface ActivityLog {
   request_id: string;
   user_id: string | null;
   action: string;
-  details: any;
+  details: Record<string, unknown>;
   created_at: string;
 }
 
@@ -45,7 +45,7 @@ export interface ConversationState {
   chat_id: string;
   user_id: string | null;
   step: string;
-  data: any;
+  data: NewRequestData | CompleteRequestData;
   updated_at: string;
 }
 
