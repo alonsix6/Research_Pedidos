@@ -27,8 +27,39 @@ const getSupabase = (): SupabaseClient => getSupabaseAdmin();
 const RATE_LIMIT_MAX_REQUESTS = 3;
 const RATE_LIMIT_WINDOW_MINUTES = 10;
 
+// Rate limiting global: máximo 100 requests por minuto al webhook
+const GLOBAL_RATE_LIMIT_MAX = 100;
+const GLOBAL_RATE_LIMIT_WINDOW_MS = 60000; // 1 minuto
+
 // Timeout de conversación: 30 minutos
 const CONVERSATION_TIMEOUT_MINUTES = 30;
+
+// Almacenamiento en memoria para rate limiting global (se reinicia con cada cold start)
+let globalRequestCount = 0;
+let globalRateLimitWindowStart = Date.now();
+
+/**
+ * Valida que un string sea un UUID v4 válido
+ */
+function isValidUUID(uuid: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid);
+}
+
+/**
+ * Rate limiting global del webhook
+ */
+function checkGlobalRateLimit(): boolean {
+  const now = Date.now();
+
+  // Reiniciar ventana si ha pasado
+  if (now - globalRateLimitWindowStart > GLOBAL_RATE_LIMIT_WINDOW_MS) {
+    globalRequestCount = 0;
+    globalRateLimitWindowStart = now;
+  }
+
+  globalRequestCount++;
+  return globalRequestCount <= GLOBAL_RATE_LIMIT_MAX;
+}
 
 // ===== Tipos para callback query =====
 interface TelegramCallbackQuery {
@@ -225,21 +256,27 @@ const conversationMessages = {
  * https://core.telegram.org/bots/api#setwebhook
  */
 function validateWebhookSignature(body: string, secretToken: string | undefined, headerToken: string | undefined): boolean {
-  // Si no hay secret token configurado, permitir (para compatibilidad)
+  // PRODUCCIÓN: Secret token es obligatorio
   if (!secretToken) {
-    return true;
+    console.error('SECURITY: TELEGRAM_WEBHOOK_SECRET no está configurado. Rechazando webhook.');
+    return false;
   }
 
   // Si hay secret token pero no viene el header, rechazar
   if (!headerToken) {
+    console.error('SECURITY: Webhook recibido sin header X-Telegram-Bot-Api-Secret-Token');
     return false;
   }
 
-  // Comparar tokens
-  return crypto.timingSafeEqual(
-    Buffer.from(secretToken),
-    Buffer.from(headerToken)
-  );
+  // Comparar tokens de forma segura (timing-safe)
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(secretToken),
+      Buffer.from(headerToken)
+    );
+  } catch {
+    return false;
+  }
 }
 
 export const handler: Handler = async (event) => {
@@ -251,7 +288,16 @@ export const handler: Handler = async (event) => {
     };
   }
 
-  // Validar firma del webhook (si está configurado TELEGRAM_WEBHOOK_SECRET)
+  // Rate limiting global del webhook
+  if (!checkGlobalRateLimit()) {
+    console.warn('RATE_LIMIT: Global webhook rate limit exceeded');
+    return {
+      statusCode: 429,
+      body: JSON.stringify({ error: 'Too many requests' }),
+    };
+  }
+
+  // Validar firma del webhook
   const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
   const headerSecret = event.headers['x-telegram-bot-api-secret-token'];
 
@@ -867,7 +913,7 @@ async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery) {
       const requestId = data.replace('complete_', '');
 
       // Validar que el requestId sea un UUID válido
-      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+      if (!isValidUUID(requestId)) {
         await answerCallbackQuery(callbackQuery.id, '❌ ID inválido', true);
         return;
       }
@@ -891,7 +937,7 @@ async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery) {
       const requestId = data.replace('confirm_complete_', '');
 
       // Validar UUID
-      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+      if (!isValidUUID(requestId)) {
         await answerCallbackQuery(callbackQuery.id, '❌ ID inválido', true);
         return;
       }
@@ -923,7 +969,7 @@ async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery) {
       const requestId = data.replace('details_', '');
 
       // Validar UUID
-      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+      if (!isValidUUID(requestId)) {
         await answerCallbackQuery(callbackQuery.id, '❌ ID inválido', true);
         return;
       }

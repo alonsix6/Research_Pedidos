@@ -15,6 +15,7 @@ interface HistoryModalProps {
 }
 
 const ITEMS_PER_PAGE = 10;
+const MAX_SEARCH_LENGTH = 100;
 
 export default function HistoryModal({ isOpen, onClose }: HistoryModalProps) {
   const [completedRequests, setCompletedRequests] = useState<Request[]>([]);
@@ -66,8 +67,12 @@ export default function HistoryModal({ isOpen, onClose }: HistoryModalProps) {
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   function handleSearch(e: React.ChangeEvent<HTMLInputElement>) {
-    setSearchQuery(e.target.value);
-    setCurrentPage(1); // Reset to first page on search
+    const value = e.target.value;
+    // Limitar longitud de búsqueda para prevenir DoS
+    if (value.length <= MAX_SEARCH_LENGTH) {
+      setSearchQuery(value);
+      setCurrentPage(1); // Reset to first page on search
+    }
   }
 
   return (

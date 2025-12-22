@@ -32,4 +32,6 @@
     # Permissions Policy - Disable unnecessary features
     Permissions-Policy = "geolocation=(), microphone=(), camera=()"
     # Content Security Policy
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.telegram.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    # Nota: Next.js requiere 'unsafe-inline' para styles (CSS-in-JS runtime)
+    # 'unsafe-eval' removido para mayor seguridad
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.telegram.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"

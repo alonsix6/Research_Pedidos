@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { validateEnvironment } from './validateEnv';
 
 // Variables lazy-initialized
 let supabaseInstance: SupabaseClient | null = null;
@@ -6,6 +7,13 @@ let supabaseAdminInstance: SupabaseClient | null = null;
 
 // Helper para verificar si estamos en el servidor
 export const isServer = typeof window === 'undefined';
+
+// Validar variables de entorno al cargar el módulo (solo warnings)
+const envValidation = validateEnvironment(isServer);
+if (!envValidation.isValid && isServer) {
+  console.error(`[Supabase] Missing env vars: ${envValidation.missingVars.join(', ')}`);
+}
+envValidation.warnings.forEach(w => console.warn(`[Supabase] ${w}`));
 
 /**
  * Cliente para el frontend (usa la anon key)
