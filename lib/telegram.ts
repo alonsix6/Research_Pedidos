@@ -3,6 +3,17 @@ import { formatLimaDate, formatDaysLeft, getPriorityEmoji, getStatusEmoji } from
 
 const TELEGRAM_API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
 
+// Tipos para inline keyboard
+export interface InlineKeyboardButton {
+  text: string;
+  callback_data?: string;
+  url?: string;
+}
+
+export interface InlineKeyboardMarkup {
+  inline_keyboard: InlineKeyboardButton[][];
+}
+
 /**
  * Envía un mensaje de texto a un chat
  */
@@ -24,6 +35,149 @@ export async function sendMessage(chatId: string | number, text: string, parseMo
   }
 
   return response.json();
+}
+
+/**
+ * Envía un mensaje con botones inline
+ */
+export async function sendMessageWithButtons(
+  chatId: string | number,
+  text: string,
+  buttons: InlineKeyboardMarkup,
+  parseMode: 'Markdown' | 'HTML' = 'Markdown'
+) {
+  const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      parse_mode: parseMode,
+      reply_markup: buttons,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('Error sending message with buttons:', error);
+    throw new Error(`Failed to send message: ${error}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Responde a un callback query (cuando se presiona un botón inline)
+ */
+export async function answerCallbackQuery(
+  callbackQueryId: string,
+  text?: string,
+  showAlert: boolean = false
+) {
+  const response = await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      callback_query_id: callbackQueryId,
+      text,
+      show_alert: showAlert,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('Error answering callback:', error);
+  }
+
+  return response.json();
+}
+
+/**
+ * Edita un mensaje existente (útil después de presionar un botón)
+ */
+export async function editMessageText(
+  chatId: string | number,
+  messageId: number,
+  text: string,
+  parseMode: 'Markdown' | 'HTML' = 'Markdown',
+  buttons?: InlineKeyboardMarkup
+) {
+  const body: any = {
+    chat_id: chatId,
+    message_id: messageId,
+    text,
+    parse_mode: parseMode,
+  };
+
+  if (buttons) {
+    body.reply_markup = buttons;
+  }
+
+  const response = await fetch(`${TELEGRAM_API}/editMessageText`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('Error editing message:', error);
+  }
+
+  return response.json();
+}
+
+/**
+ * Crea botones inline para acciones rápidas en un pedido
+ */
+export function createRequestButtons(requestId: string): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        { text: '✅ Completar', callback_data: `complete_${requestId}` },
+        { text: '👁️ Ver detalles', callback_data: `details_${requestId}` },
+      ],
+      [
+        { text: '📋 Ver todos', callback_data: 'view_all' },
+      ],
+    ],
+  };
+}
+
+/**
+ * Crea botones para el menú principal
+ */
+export function createMainMenuButtons(): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        { text: '➕ Nuevo pedido', callback_data: 'new_request' },
+        { text: '📋 Ver todos', callback_data: 'view_all' },
+      ],
+      [
+        { text: '👤 Mis pedidos', callback_data: 'my_requests' },
+        { text: '🔥 Urgentes', callback_data: 'urgent' },
+      ],
+      [
+        { text: '📅 Hoy', callback_data: 'today' },
+        { text: '📆 Esta semana', callback_data: 'week' },
+      ],
+    ],
+  };
+}
+
+/**
+ * Crea botones para confirmar completar un pedido
+ */
+export function createCompleteConfirmButtons(requestId: string): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        { text: '✅ Sí, completar', callback_data: `confirm_complete_${requestId}` },
+        { text: '❌ Cancelar', callback_data: 'cancel_action' },
+      ],
+    ],
+  };
 }
 
 /**
@@ -78,10 +232,11 @@ export function getHelpMessage(): string {
 
 📝 *Comandos principales:*
 
-/nuevopedido - Crear un nuevo pedido (flujo guiado)
-/completar - Marcar un pedido como completado
+/nuevopedido - Crear un nuevo pedido
+/completar - Marcar pedido como completado
 /ver - Ver todos los pedidos activos
 /mios - Ver mis pedidos asignados
+/menu - Abrir menú con botones
 
 📅 *Filtros por fecha:*
 
@@ -95,7 +250,9 @@ export function getHelpMessage(): string {
 /ayuda - Ver este mensaje de ayuda
 
 ---
-💡 *Tip:* Usa /nuevopedido para agregar pedidos fácilmente. El bot te guiará paso a paso.`;
+💡 *Tip:* Usa los botones de abajo para acceder rápidamente a las opciones.
+
+⏰ *Resumen diario:* Recibirás un resumen automático a las 9am de Lunes a Viernes.`;
 }
 
 /**
