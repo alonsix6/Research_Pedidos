@@ -12,16 +12,10 @@ import {
   Lightbulb,
   MessageSquare,
   Search,
-  Volume2,
-  VolumeX,
-  Grid,
-  List,
   History,
   Keyboard,
   Wifi,
   WifiOff,
-  Sun,
-  Moon,
 } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 import {
@@ -64,6 +58,7 @@ import PedidoModal from './components/PedidoModal';
 import SearchFilter from './components/SearchFilter';
 import HistoryModal from './components/HistoryModal';
 import ShortcutsModal from './components/ShortcutsModal';
+import SettingsDropdown from './components/SettingsDropdown';
 import { StatsSkeleton, SectionSkeleton } from './components/LoadingSkeleton';
 
 const MAX_VISIBLE_COMPLETED = 3;
@@ -310,8 +305,10 @@ export default function DashboardPage() {
   return (
     <ErrorBoundary>
     <DeviceFrame>
-      {/* Top Bar with connection indicator */}
-      <TopBar isConnected={isConnected && !error} />
+      {/* Top Bar with connection indicator - hidden on mobile */}
+      <div className="decorative-mobile-hide">
+        <TopBar isConnected={isConnected && !error} />
+      </div>
 
       {/* Header Section */}
       <header className="flex items-start justify-between p-4 pb-2">
@@ -340,7 +337,9 @@ export default function DashboardPage() {
             </span>
           </p>
         </div>
-        <SpeakerGrille rows={6} cols={16} aria-hidden="true" />
+        <div className="decorative-mobile-hide">
+          <SpeakerGrille rows={6} cols={16} aria-hidden="true" />
+        </div>
       </header>
 
       {/* Main content area - WCAG landmark */}
@@ -381,64 +380,16 @@ export default function DashboardPage() {
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -1px 0 rgba(0,0,0,0.1)',
         }}
       >
-        {/* Left controls */}
+        {/* Left controls - Settings dropdown */}
         <nav className="flex items-center gap-2" aria-label="Controles de visualización">
-          <motion.button
-            onClick={toggleSound}
-            className="w-11 h-11 flex items-center justify-center rounded-full"
-            style={{
-              background: 'linear-gradient(180deg, #4A4A4A 0%, #3A3A3A 100%)',
-              boxShadow: '0 2px 0 #2A2A2A, inset 0 1px 0 rgba(255,255,255,0.1)',
-            }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95, y: 1 }}
-            aria-label={settings.soundEnabled ? 'Desactivar sonido (Alt+M)' : 'Activar sonido (Alt+M)'}
-            aria-pressed={settings.soundEnabled}
-          >
-            {settings.soundEnabled ? (
-              <Volume2 size={16} className="text-[#00E5FF]" aria-hidden="true" />
-            ) : (
-              <VolumeX size={16} className="text-gray-500" aria-hidden="true" />
-            )}
-          </motion.button>
-
-          <motion.button
-            onClick={toggleCompactView}
-            className="w-11 h-11 flex items-center justify-center rounded-full"
-            style={{
-              background: 'linear-gradient(180deg, #4A4A4A 0%, #3A3A3A 100%)',
-              boxShadow: '0 2px 0 #2A2A2A, inset 0 1px 0 rgba(255,255,255,0.1)',
-            }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95, y: 1 }}
-            aria-label={settings.compactView ? 'Cambiar a vista normal (Alt+C)' : 'Cambiar a vista compacta (Alt+C)'}
-            aria-pressed={settings.compactView}
-          >
-            {settings.compactView ? (
-              <List size={16} className="text-[#FF4500]" aria-hidden="true" />
-            ) : (
-              <Grid size={16} className="text-gray-400" aria-hidden="true" />
-            )}
-          </motion.button>
-
-          <motion.button
-            onClick={() => { playClick(); toggleTheme(); }}
-            className="w-11 h-11 flex items-center justify-center rounded-full"
-            style={{
-              background: 'linear-gradient(180deg, #4A4A4A 0%, #3A3A3A 100%)',
-              boxShadow: '0 2px 0 #2A2A2A, inset 0 1px 0 rgba(255,255,255,0.1)',
-            }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95, y: 1 }}
-            aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-            aria-pressed={isDark}
-          >
-            {isDark ? (
-              <Sun size={16} className="text-[#FFD600]" aria-hidden="true" />
-            ) : (
-              <Moon size={16} className="text-gray-400" aria-hidden="true" />
-            )}
-          </motion.button>
+          <SettingsDropdown
+            soundEnabled={settings.soundEnabled}
+            onToggleSound={toggleSound}
+            compactView={settings.compactView}
+            onToggleCompactView={toggleCompactView}
+            isDark={isDark}
+            onToggleTheme={() => { playClick(); toggleTheme(); }}
+          />
         </nav>
 
         {/* Action buttons */}
@@ -475,7 +426,7 @@ export default function DashboardPage() {
 
           <motion.button
             onClick={handleShowHelp}
-            className="w-11 h-11 flex items-center justify-center rounded-full"
+            className="desktop-only w-11 h-11 flex items-center justify-center rounded-full"
             style={{
               background: 'linear-gradient(180deg, #4A4A4A 0%, #3A3A3A 100%)',
               boxShadow: '0 2px 0 #2A2A2A, inset 0 1px 0 rgba(255,255,255,0.1)',
@@ -693,7 +644,7 @@ export default function DashboardPage() {
         }}
         role="contentinfo"
       >
-        <div className="flex items-center gap-2 text-[10px]" style={{ color: '#595959' }}>
+        <div className="desktop-only items-center gap-2 text-[10px]" style={{ color: '#595959' }}>
           <Lightbulb size={12} aria-hidden="true" />
           <span>TIP: Presiona Alt+/ para ver los atajos de teclado</span>
         </div>

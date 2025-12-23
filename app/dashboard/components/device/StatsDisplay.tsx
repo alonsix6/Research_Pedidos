@@ -1,9 +1,10 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import ScreenDisplay, { LCDNumber, LCDLabel, LCDIcon, LCDDivider } from './ScreenDisplay';
 import { User } from '@/lib/types';
-import { Users } from 'lucide-react';
+import { Users, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface StatsDisplayProps {
   total: number;
@@ -26,6 +27,8 @@ export default function StatsDisplay({
   onMemberSelect,
   requestsByMember,
 }: StatsDisplayProps) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   // Get first letter of name for compact display
   const getInitial = (name: string) => name.charAt(0).toUpperCase();
 
@@ -42,7 +45,7 @@ export default function StatsDisplay({
   return (
     <ScreenDisplay>
       <div className="flex flex-col gap-3" role="region" aria-label="Estadísticas de pedidos">
-        {/* Fila superior - Filtros por persona */}
+        {/* Fila superior - Filtros por persona + Collapse toggle */}
         <div className="flex items-center justify-between">
           <div
             className="flex items-center gap-2"
@@ -74,50 +77,98 @@ export default function StatsDisplay({
           </div>
 
           <div className="flex items-center gap-3" role="status" aria-label="Indicadores de estado">
+            {/* Stats mini (visible when collapsed) */}
+            <AnimatePresence>
+              {isCollapsed && (
+                <motion.div
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  className="hidden sm:flex items-center gap-2 mr-2"
+                >
+                  <span className="text-[10px] text-[#00E5FF]">{active}</span>
+                  <span className="text-[8px] text-gray-600">/</span>
+                  <span className="text-[10px] text-[#00C853]">{completed}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <LCDIcon type="record" active={urgent > 0} />
             <LCDIcon type="play" active={active > 0} />
+
+            {/* Collapse toggle - visible on mobile */}
+            <motion.button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="mobile-only w-8 h-8 flex items-center justify-center rounded-sm ml-2"
+              style={{
+                background: '#2A2A2A',
+                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3)',
+              }}
+              whileTap={{ scale: 0.95 }}
+              aria-label={isCollapsed ? 'Expandir estadísticas' : 'Colapsar estadísticas'}
+              aria-expanded={!isCollapsed}
+            >
+              {isCollapsed ? (
+                <ChevronDown size={14} className="text-gray-400" />
+              ) : (
+                <ChevronUp size={14} className="text-gray-400" />
+              )}
+            </motion.button>
           </div>
         </div>
 
-        <LCDDivider />
+        {/* Collapsible content */}
+        <AnimatePresence initial={false}>
+          {!isCollapsed && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <LCDDivider />
 
-        {/* Stats principales */}
-        <div
-          className="grid grid-cols-3 gap-4"
-          role="group"
-          aria-label={`Estadísticas de ${selectedMemberName}`}
-          aria-live="polite"
-          aria-atomic="true"
-        >
-          <StatItem label="TOTAL" value={total} color="cyan" description="pedidos totales" />
-          <StatItem label="ACTIVOS" value={active} color="orange" description="pedidos activos" />
-          <StatItem label="LISTOS" value={completed} color="green" description="pedidos completados" />
-        </div>
+              {/* Stats principales */}
+              <div
+                className="grid grid-cols-3 gap-4 py-3"
+                role="group"
+                aria-label={`Estadísticas de ${selectedMemberName}`}
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                <StatItem label="TOTAL" value={total} color="cyan" description="pedidos totales" />
+                <StatItem label="ACTIVOS" value={active} color="orange" description="pedidos activos" />
+                <StatItem label="LISTOS" value={completed} color="green" description="pedidos completados" />
+              </div>
 
-        <LCDDivider />
+              <LCDDivider />
 
-        {/* Fila inferior - Info adicional */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2" role="status" aria-label={`${urgent} pedidos urgentes`}>
-            <LCDLabel color="orange">URG</LCDLabel>
-            <LCDNumber value={urgent.toString().padStart(2, '0')} color="orange" size="sm" />
-          </div>
+              {/* Fila inferior - Info adicional */}
+              <div className="flex items-center justify-between pt-3">
+                <div className="flex items-center gap-2" role="status" aria-label={`${urgent} pedidos urgentes`}>
+                  <LCDLabel color="orange">URG</LCDLabel>
+                  <LCDNumber value={urgent.toString().padStart(2, '0')} color="orange" size="sm" />
+                </div>
 
-          {/* Mostrar filtro activo */}
-          <div className="flex items-center gap-2" role="status" aria-label={`Vista actual: ${selectedMemberName}`}>
-            <LCDLabel color="cyan">
-              {selectedMember === null
-                ? 'EQUIPO'
-                : teamMembers.find(m => m.id === selectedMember)?.name.toUpperCase() || ''
-              }
-            </LCDLabel>
-          </div>
+                {/* Mostrar filtro activo */}
+                <div className="flex items-center gap-2" role="status" aria-label={`Vista actual: ${selectedMemberName}`}>
+                  <LCDLabel color="cyan">
+                    {selectedMember === null
+                      ? 'EQUIPO'
+                      : teamMembers.find(m => m.id === selectedMember)?.name.toUpperCase() || ''
+                    }
+                  </LCDLabel>
+                </div>
 
-          <div className="flex items-center gap-2" role="status" aria-label={`${teamMembers.length} miembros del equipo`}>
-            <LCDLabel color="cyan">TEAM</LCDLabel>
-            <LCDNumber value={teamMembers.length.toString().padStart(2, '0')} color="cyan" size="sm" />
-          </div>
-        </div>
+                <div className="flex items-center gap-2" role="status" aria-label={`${teamMembers.length} miembros del equipo`}>
+                  <LCDLabel color="cyan">TEAM</LCDLabel>
+                  <LCDNumber value={teamMembers.length.toString().padStart(2, '0')} color="cyan" size="sm" />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </ScreenDisplay>
   );
