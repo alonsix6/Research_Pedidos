@@ -992,3 +992,271 @@ a:focus-visible {
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, #5A5A5A 0%, #4A4A4A 100%);
 }
+
+/* ========================================
+   RESPONSIVE DESIGN - MOBILE FIRST
+   ======================================== */
+
+/* Extra small devices (phones, less than 480px) */
+@media (max-width: 479px) {
+  body {
+    font-size: 13px;
+  }
+
+  /* Reduce padding on very small screens */
+  .lcd-screen {
+    padding: 8px !important;
+    border-width: 2px;
+  }
+
+  /* Buttons - ensure touch-friendly sizing */
+  .btn-3d {
+    min-height: 44px;
+    padding: 12px 14px;
+    font-size: 10px;
+  }
+
+  /* Cards - more compact */
+  .pad-card,
+  .pad-card-completed {
+    padding: 10px;
+  }
+
+  /* Form inputs - larger touch targets */
+  .input-lcd {
+    min-height: 44px;
+    padding: 12px;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+
+  /* Modals - full screen on mobile */
+  .modal-content {
+    max-height: 95vh;
+    margin: 0.5rem;
+    border-radius: 8px;
+  }
+
+  /* Stats display - stack on mobile */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px;
+  }
+
+  /* Section headers - smaller */
+  .section-header {
+    font-size: 9px;
+    padding: 6px 10px;
+  }
+
+  /* Knobs - smaller on mobile */
+  .knob {
+    width: 40px;
+    height: 40px;
+  }
+
+  .knob-small {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* LEDs - same size for visibility */
+  .led {
+    width: 6px;
+    height: 6px;
+  }
+}
+
+/* Small devices (phones, 480px to 639px) */
+@media (min-width: 480px) and (max-width: 639px) {
+  body {
+    font-size: 13px;
+  }
+
+  .btn-3d {
+    min-height: 42px;
+    padding: 10px 14px;
+  }
+
+  .input-lcd {
+    min-height: 42px;
+    font-size: 16px; /* Prevents iOS zoom */
+  }
+}
+
+/* Medium devices (tablets, 640px to 767px) */
+@media (min-width: 640px) and (max-width: 767px) {
+  body {
+    font-size: 14px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Large devices (tablets landscape, 768px to 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  body {
+    font-size: 14px;
+  }
+}
+
+/* Extra large devices (desktops, 1024px and up) */
+@media (min-width: 1024px) {
+  body {
+    font-size: 14px;
+  }
+
+  /* Optional: larger spacing on big screens */
+  .pad-card,
+  .pad-card-completed {
+    padding: 14px;
+  }
+}
+
+/* ========================================
+   SAFE AREA INSETS (iOS notch support)
+   ======================================== */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+
+  /* Bottom fixed elements need extra padding */
+  .fixed-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* ========================================
+   TOUCH INTERACTIONS
+   ======================================== */
+@media (hover: none) and (pointer: coarse) {
+  /* Remove hover effects on touch devices */
+  .btn-3d:hover,
+  .pad-card:hover,
+  .knob:hover {
+    transform: none;
+  }
+
+  /* Ensure all interactive elements are touch-friendly */
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Larger tap targets for small buttons */
+  .action-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* ========================================
+   LANDSCAPE MODE ADJUSTMENTS
+   ======================================== */
+@media (max-height: 500px) and (orientation: landscape) {
+  /* Reduce vertical spacing in landscape */
+  .lcd-screen {
+    padding: 6px;
+  }
+
+  .pad-card,
+  .pad-card-completed {
+    padding: 8px;
+  }
+
+  /* Smaller stats display */
+  .stats-display {
+    padding: 8px;
+  }
+
+  /* Modal - horizontal layout */
+  .modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+}
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+
+  .lcd-screen {
+    background: white;
+    border-color: #ccc;
+    box-shadow: none;
+  }
+
+  .btn-3d,
+  .knob,
+  .led {
+    display: none;
+  }
+
+  .pad-card,
+  .pad-card-completed {
+    background: #f5f5f5;
+    box-shadow: none;
+    break-inside: avoid;
+  }
+}
+
+/* ========================================
+   REDUCED MOTION
+   ======================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ========================================
+   HIGH CONTRAST MODE
+   ======================================== */
+@media (prefers-contrast: high) {
+  :root {
+    --te-text-muted: #B0B0B0;
+    --te-screen-bg: #000000;
+    --te-screen-border: #FFFFFF;
+  }
+
+  .lcd-screen {
+    border-width: 2px;
+  }
+
+  .btn-3d {
+    border: 2px solid currentColor;
+  }
+}
+
+/* ========================================
+   PWA STANDALONE MODE
+   ======================================== */
+@media (display-mode: standalone) {
+  /* Hide browser-specific elements in PWA */
+  .browser-only {
+    display: none;
+  }
+
+  /* Add top padding for status bar */
+  body {
+    padding-top: env(safe-area-inset-top);
+  }
+}
