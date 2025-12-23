@@ -1,53 +1,57 @@
+#!/usr/bin/env node
 /**
- * Script para generar iconos PNG desde el SVG base
- * Requiere: npm install sharp
- * Uso: node scripts/generate-icons.js
+ * Generate PWA icons from SVG
+ * Run with: node scripts/generate-icons.js
  */
 
+const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
 
-// Si sharp no está instalado, crear iconos placeholder simples
+const ICONS_DIR = path.join(__dirname, '../public/icons');
+const SVG_PATH = path.join(ICONS_DIR, 'icon.svg');
+
+// Icon sizes needed for PWA and iOS
+const SIZES = [
+  { size: 16, name: 'favicon-16x16.png' },
+  { size: 32, name: 'favicon-32x32.png' },
+  { size: 48, name: 'icon-48.png' },
+  { size: 72, name: 'icon-72.png' },
+  { size: 96, name: 'icon-96.png' },
+  { size: 120, name: 'apple-touch-icon-120.png' },
+  { size: 128, name: 'icon-128.png' },
+  { size: 144, name: 'icon-144.png' },
+  { size: 152, name: 'apple-touch-icon-152.png' },
+  { size: 167, name: 'apple-touch-icon-167.png' },  // iPad Pro
+  { size: 180, name: 'apple-touch-icon.png' },      // iPhone retina
+  { size: 192, name: 'icon-192.png' },              // Android/PWA
+  { size: 256, name: 'icon-256.png' },
+  { size: 384, name: 'icon-384.png' },
+  { size: 512, name: 'icon-512.png' },              // PWA splash
+];
+
 async function generateIcons() {
-  const iconsDir = path.join(__dirname, '../public/icons');
-  const sizes = [192, 512];
+  console.log('Generating PWA icons from SVG...\n');
 
-  console.log('📱 Generando iconos PWA...');
+  // Read SVG
+  const svgBuffer = fs.readFileSync(SVG_PATH);
 
-  try {
-    // Intentar usar sharp si está disponible
-    const sharp = require('sharp');
-    const svgPath = path.join(iconsDir, 'icon.svg');
-    const svgBuffer = fs.readFileSync(svgPath);
+  for (const { size, name } of SIZES) {
+    const outputPath = path.join(ICONS_DIR, name);
 
-    for (const size of sizes) {
-      const outputPath = path.join(iconsDir, `icon-${size}.png`);
+    try {
       await sharp(svgBuffer)
         .resize(size, size)
         .png()
         .toFile(outputPath);
-      console.log(`✅ Generado: icon-${size}.png`);
-    }
-  } catch (error) {
-    // Si sharp no está disponible, crear placeholders
-    console.log('⚠️ Sharp no disponible, creando placeholders...');
 
-    for (const size of sizes) {
-      const outputPath = path.join(iconsDir, `icon-${size}.png`);
-      // Crear un archivo placeholder (1x1 pixel naranja)
-      const placeholder = Buffer.from(
-        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
-        'base64'
-      );
-      fs.writeFileSync(outputPath, placeholder);
-      console.log(`⚠️ Placeholder creado: icon-${size}.png (reemplazar con icono real)`);
+      console.log('Generated: ' + name + ' (' + size + 'x' + size + ')');
+    } catch (err) {
+      console.error('Failed: ' + name + ' - ' + err.message);
     }
   }
 
-  console.log('\n✅ Iconos generados!');
-  console.log('💡 Para iconos de alta calidad, usa una herramienta como:');
-  console.log('   - https://realfavicongenerator.net');
-  console.log('   - https://www.pwabuilder.com/imageGenerator');
+  console.log('\nIcon generation complete!');
 }
 
 generateIcons().catch(console.error);
