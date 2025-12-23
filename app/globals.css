@@ -1260,3 +1260,39 @@ a:focus-visible {
     padding-top: env(safe-area-inset-top);
   }
 }
+
+/* ========================================
+   RESPONSIVE VISIBILITY UTILITIES
+   ======================================== */
+/* Mobile-only: visible only on mobile (< 768px) */
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .mobile-only {
+    display: flex;
+  }
+
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+/* Desktop-only: visible only on desktop (>= 768px) */
+@media (min-width: 768px) {
+  .desktop-only {
+    display: flex;
+  }
+
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+/* Hide decorative elements on mobile for more content space */
+@media (max-width: 767px) {
+  .decorative-mobile-hide {
+    display: none !important;
+  }
+}
