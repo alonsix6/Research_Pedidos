@@ -17,11 +17,9 @@ ON CONFLICT (telegram_id) DO UPDATE SET
   role = EXCLUDED.role;
 
 -- Mellanie (Practicante)
--- IMPORTANTE: Reemplazar 'TELEGRAM_ID_MELLANIE' con su ID real.
--- Para obtener el ID: que Mellanie le envíe /start a @userinfobot en Telegram.
 INSERT INTO users (telegram_id, telegram_username, name, role)
 VALUES
-  ('TELEGRAM_ID_MELLANIE', 'Mellanie', 'Mellanie', 'practicante')
+  ('1537644352', 'Mellanie', 'Mellanie', 'practicante')
 ON CONFLICT (telegram_id) DO UPDATE SET
   telegram_username = EXCLUDED.telegram_username,
   name = EXCLUDED.name,
