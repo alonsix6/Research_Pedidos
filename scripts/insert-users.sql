@@ -9,8 +9,19 @@ SELECT * FROM users;
 -- Si el usuario ya existe (mismo telegram_id), no hace nada (ON CONFLICT DO NOTHING)
 INSERT INTO users (telegram_id, telegram_username, name, role)
 VALUES
-  -- Alonso (Analyst)
-  ('1985143829', 'alonsix6', 'Alonso', 'analyst')
+  -- Alonso (Assistant)
+  ('1985143829', 'alonsix6', 'Alonso', 'assistant')
+ON CONFLICT (telegram_id) DO UPDATE SET
+  telegram_username = EXCLUDED.telegram_username,
+  name = EXCLUDED.name,
+  role = EXCLUDED.role;
+
+-- Mellanie (Practicante)
+-- IMPORTANTE: Reemplazar 'TELEGRAM_ID_MELLANIE' con su ID real.
+-- Para obtener el ID: que Mellanie le envíe /start a @userinfobot en Telegram.
+INSERT INTO users (telegram_id, telegram_username, name, role)
+VALUES
+  ('TELEGRAM_ID_MELLANIE', 'Mellanie', 'Mellanie', 'practicante')
 ON CONFLICT (telegram_id) DO UPDATE SET
   telegram_username = EXCLUDED.telegram_username,
   name = EXCLUDED.name,
