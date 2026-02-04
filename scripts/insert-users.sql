@@ -9,8 +9,17 @@ SELECT * FROM users;
 -- Si el usuario ya existe (mismo telegram_id), no hace nada (ON CONFLICT DO NOTHING)
 INSERT INTO users (telegram_id, telegram_username, name, role)
 VALUES
-  -- Alonso (Analyst)
-  ('1985143829', 'alonsix6', 'Alonso', 'analyst')
+  -- Alonso (Assistant)
+  ('1985143829', 'alonsix6', 'Alonso', 'assistant')
+ON CONFLICT (telegram_id) DO UPDATE SET
+  telegram_username = EXCLUDED.telegram_username,
+  name = EXCLUDED.name,
+  role = EXCLUDED.role;
+
+-- Mellanie (Practicante)
+INSERT INTO users (telegram_id, telegram_username, name, role)
+VALUES
+  ('1537644352', 'Mellanie', 'Mellanie', 'practicante')
 ON CONFLICT (telegram_id) DO UPDATE SET
   telegram_username = EXCLUDED.telegram_username,
   name = EXCLUDED.name,

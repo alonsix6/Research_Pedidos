@@ -195,12 +195,13 @@ async function getTeamMemberIds(supabase: SupabaseClient): Promise<Record<string
   const { data: users } = await supabase
     .from('users')
     .select('id, name')
-    .in('name', ['Sol', 'Estef', 'Alonso']);
+    .in('name', ['Sol', 'Estef', 'Alonso', 'Mellanie']);
 
   const memberIds: Record<string, string | null> = {
     Sol: null,
     Estef: null,
     Alonso: null,
+    Mellanie: null,
   };
 
   if (users) {
@@ -225,7 +226,7 @@ const conversationMessages = {
     `✅ Solicitante: ${requester}\n\n¿Fecha de entrega?\nPuedes usar:\n• Fecha: "25/12" o "25/12/2024"\n• Relativo: "hoy", "mañana", "en 3 días"`,
 
   deadline: (deadline: string, formatted: string) =>
-    `✅ Deadline: ${formatted}\n\n¿Quién se encarga?\n1️⃣ Sol\n2️⃣ Estef\n3️⃣ Alonso\n4️⃣ Sin asignar\n\nResponde con el número.`,
+    `✅ Deadline: ${formatted}\n\n¿Quién se encarga?\n1️⃣ Sol\n2️⃣ Estef\n3️⃣ Alonso\n4️⃣ Mellanie\n5️⃣ Sin asignar\n\nResponde con el número.`,
 
   summary: (data: NewRequestData, assigned: string, priority: string, emoji: string) => {
     const parts = data.requester_name?.split(',') || ['', ''];
@@ -241,7 +242,7 @@ const conversationMessages = {
 
   invalidDate: '⚠️ No pude entender esa fecha. Usa formatos como:\n• "25/12" o "25/12/2024"\n• "hoy", "mañana"\n• "en 3 días"',
 
-  invalidAssignment: '⚠️ Por favor responde con 1, 2, 3 o 4.',
+  invalidAssignment: '⚠️ Por favor responde con 1, 2, 3, 4 o 5.',
 
   conversationExpired: '⏰ Tu sesión ha expirado por inactividad. Usa /nuevopedido para comenzar de nuevo.',
 
@@ -582,6 +583,9 @@ async function handleConversationFlow(
         assignedName = 'Alonso';
         assignedTo = teamMemberIds.Alonso;
       } else if (text === '4') {
+        assignedName = 'Mellanie';
+        assignedTo = teamMemberIds.Mellanie;
+      } else if (text === '5') {
         assignedName = 'Sin asignar';
         assignedTo = null;
       } else {

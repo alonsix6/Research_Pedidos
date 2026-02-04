@@ -36,7 +36,8 @@ Flujo conversacional completo para crear pedidos. El bot te guía paso a paso:
    - `1` - Sol
    - `2` - Estef
    - `3` - Alonso
-   - `4` - Sin asignar
+   - `4` - Mellanie
+   - `5` - Sin asignar
 
 **Confirmación:**
 El bot crea el pedido y muestra un resumen completo con:
@@ -70,7 +71,8 @@ Bot: ✅ Deadline: 26/12/2024
      1️⃣ Sol
      2️⃣ Estef
      3️⃣ Alonso
-     4️⃣ Sin asignar
+     4️⃣ Mellanie
+     5️⃣ Sin asignar
 
 Usuario: 3
 Bot: ✅ Pedido creado!
@@ -269,7 +271,7 @@ INSERT INTO users (telegram_id, telegram_username, name, role)
 VALUES ('TELEGRAM_ID', 'username', 'Nombre', 'role');
 ```
 
-3. Roles disponibles: `analyst`, `assistant`, `coordinator`
+3. Roles disponibles: `analyst`, `assistant`, `coordinator`, `practicante`
 
 ### Variables de Entorno
 
