@@ -13,6 +13,7 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const TEAM_ID = process.env.TEAM_ID;
 
 // Validar variables de entorno
 if (!SUPABASE_URL || !SUPABASE_KEY || !TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
@@ -104,7 +105,7 @@ async function main() {
     const weekEnd = endOfWeek(now, { weekStartsOn: 1 }); // Domingo
 
     // Obtener pedidos completados esta semana
-    const { data: completedThisWeek, error: completedError } = await supabase
+    let completedQuery = supabase
       .from('requests')
       .select('*')
       .eq('status', 'completed')
@@ -112,16 +113,28 @@ async function main() {
       .lte('completed_at', weekEnd.toISOString())
       .order('completed_at', { ascending: false });
 
+    if (TEAM_ID) {
+      completedQuery = completedQuery.eq('team_id', TEAM_ID);
+    }
+
+    const { data: completedThisWeek, error: completedError } = await completedQuery;
+
     if (completedError) {
       throw new Error(`Error fetching completed requests: ${completedError.message}`);
     }
 
     // Obtener pedidos pendientes
-    const { data: pendingRequests, error: pendingError } = await supabase
+    let pendingQuery = supabase
       .from('requests')
       .select('*')
       .in('status', ['pending', 'in_progress'])
       .order('deadline', { ascending: true });
+
+    if (TEAM_ID) {
+      pendingQuery = pendingQuery.eq('team_id', TEAM_ID);
+    }
+
+    const { data: pendingRequests, error: pendingError } = await pendingQuery;
 
     if (pendingError) {
       throw new Error(`Error fetching pending requests: ${pendingError.message}`);
