@@ -150,10 +150,16 @@ export default function PedidoModal({
       };
 
       if (editingRequest) {
-        const { error } = await supabase
+        let updateQuery = supabase
           .from('requests')
           .update(requestData)
           .eq('id', editingRequest.id);
+
+        if (TEAM_ID) {
+          updateQuery = updateQuery.eq('team_id', TEAM_ID);
+        }
+
+        const { error } = await updateQuery;
 
         if (error) throw error;
       } else {
