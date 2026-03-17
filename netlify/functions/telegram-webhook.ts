@@ -23,6 +23,9 @@ import { parseNaturalDate, calculatePriority, getPriorityEmoji, formatLimaDate }
 // Cliente de Supabase con service role (lazy-initialized)
 const getSupabase = (): SupabaseClient => getSupabaseAdmin();
 
+// Team ID para filtrar datos (cada bot atiende un solo equipo)
+const TEAM_ID = process.env.TEAM_ID;
+
 // Rate limiting: máximo 3 pedidos cada 10 minutos por usuario
 const RATE_LIMIT_MAX_REQUESTS = 3;
 const RATE_LIMIT_WINDOW_MINUTES = 10;
@@ -189,26 +192,32 @@ async function checkRateLimit(userId: string, supabase: SupabaseClient): Promise
 }
 
 /**
- * Obtiene los IDs de usuarios del equipo en una sola query (evita N+1)
+ * Obtiene los miembros del equipo en una sola query (dinámico por team_id)
  */
-async function getTeamMemberIds(supabase: SupabaseClient): Promise<Record<string, string | null>> {
-  const { data: users } = await supabase
+async function getTeamMembers(supabase: SupabaseClient): Promise<{ id: string; name: string }[]> {
+  let query = supabase
     .from('users')
     .select('id, name')
-    .in('name', ['Sol', 'Estef', 'Alonso', 'Mellanie']);
+    .order('name', { ascending: true });
 
-  const memberIds: Record<string, string | null> = {
-    Sol: null,
-    Estef: null,
-    Alonso: null,
-    Mellanie: null,
-  };
-
-  if (users) {
-    users.forEach((user: { id: string; name: string }) => {
-      memberIds[user.name] = user.id;
-    });
+  if (TEAM_ID) {
+    query = query.eq('team_id', TEAM_ID);
   }
+
+  const { data: users } = await query;
+  return users || [];
+}
+
+/**
+ * Obtiene mapa nombre->id de los miembros del equipo
+ */
+async function getTeamMemberIds(supabase: SupabaseClient): Promise<Record<string, string | null>> {
+  const members = await getTeamMembers(supabase);
+  const memberIds: Record<string, string | null> = {};
+
+  members.forEach((user) => {
+    memberIds[user.name] = user.id;
+  });
 
   return memberIds;
 }
@@ -225,8 +234,19 @@ const conversationMessages = {
   requester: (requester: string) =>
     `✅ Solicitante: ${requester}\n\n¿Fecha de entrega?\nPuedes usar:\n• Fecha: "25/12" o "25/12/2024"\n• Relativo: "hoy", "mañana", "en 3 días"`,
 
-  deadline: (deadline: string, formatted: string) =>
-    `✅ Deadline: ${formatted}\n\n¿Quién se encarga?\n1️⃣ Sol\n2️⃣ Estef\n3️⃣ Alonso\n4️⃣ Mellanie\n5️⃣ Sin asignar\n\nResponde con el número.`,
+  deadline: (deadline: string, formatted: string, memberNames?: string[]) => {
+    let assignOptions = '';
+    if (memberNames && memberNames.length > 0) {
+      const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+      memberNames.forEach((name, i) => {
+        assignOptions += `${emojis[i] || `${i + 1}.`} ${name}\n`;
+      });
+      assignOptions += `${emojis[memberNames.length] || `${memberNames.length + 1}.`} Sin asignar`;
+    } else {
+      assignOptions = '1️⃣ Sin asignar';
+    }
+    return `✅ Deadline: ${formatted}\n\n¿Quién se encarga?\n${assignOptions}\n\nResponde con el número.`;
+  },
 
   summary: (data: NewRequestData, assigned: string, priority: string, emoji: string) => {
     const parts = data.requester_name?.split(',') || ['', ''];
@@ -242,7 +262,8 @@ const conversationMessages = {
 
   invalidDate: '⚠️ No pude entender esa fecha. Usa formatos como:\n• "25/12" o "25/12/2024"\n• "hoy", "mañana"\n• "en 3 días"',
 
-  invalidAssignment: '⚠️ Por favor responde con 1, 2, 3, 4 o 5.',
+  invalidAssignment: (max: number) =>
+    `⚠️ Por favor responde con un número del 1 al ${max}.`,
 
   conversationExpired: '⏰ Tu sesión ha expirado por inactividad. Usa /nuevopedido para comenzar de nuevo.',
 
@@ -554,6 +575,11 @@ async function handleConversationFlow(
       }
       requestData.deadline = parsedDate.toISOString();
       const formatted = formatLimaDate(parsedDate);
+
+      // Cargar miembros del equipo para mostrar opciones de asignación
+      const membersForDeadline = await getTeamMembers(getSupabase());
+      const memberNames = membersForDeadline.map(m => m.name);
+
       await saveConversationState(
         {
           chatId: chatId.toString(),
@@ -563,35 +589,28 @@ async function handleConversationFlow(
         },
         getSupabase()
       );
-      await sendMessage(chatId, conversationMessages.deadline(text, formatted));
+      await sendMessage(chatId, conversationMessages.deadline(text, formatted, memberNames));
       break;
 
     case 'awaiting_assigned':
-      // Obtener todos los IDs de miembros en una sola query
-      const teamMemberIds = await getTeamMemberIds(getSupabase());
+      // Obtener miembros del equipo dinámicamente
+      const teamMembers = await getTeamMembers(getSupabase());
+      const selNum = parseInt(text, 10);
 
       let assignedTo: string | null = null;
       let assignedName = 'Sin asignar';
 
-      if (text === '1') {
-        assignedName = 'Sol';
-        assignedTo = teamMemberIds.Sol;
-      } else if (text === '2') {
-        assignedName = 'Estef';
-        assignedTo = teamMemberIds.Estef;
-      } else if (text === '3') {
-        assignedName = 'Alonso';
-        assignedTo = teamMemberIds.Alonso;
-      } else if (text === '4') {
-        assignedName = 'Mellanie';
-        assignedTo = teamMemberIds.Mellanie;
-      } else if (text === '5') {
-        assignedName = 'Sin asignar';
-        assignedTo = null;
-      } else {
-        await sendMessage(chatId, conversationMessages.invalidAssignment);
+      if (isNaN(selNum) || selNum < 1 || selNum > teamMembers.length + 1) {
+        await sendMessage(chatId, conversationMessages.invalidAssignment(teamMembers.length + 1));
         return;
       }
+
+      if (selNum <= teamMembers.length) {
+        const selectedMember = teamMembers[selNum - 1];
+        assignedName = selectedMember.name;
+        assignedTo = selectedMember.id;
+      }
+      // else: último número = "Sin asignar" (assignedTo queda null)
 
       // Guardar el pedido en la DB
       const priority = calculatePriority(requestData.deadline!);
@@ -609,6 +628,7 @@ async function handleConversationFlow(
           status: 'pending',
           priority: priority,
           created_by: user.id,
+          ...(TEAM_ID && { team_id: TEAM_ID }),
         });
 
       if (error) {
@@ -675,12 +695,18 @@ async function handleConversationFlow(
  * Comando /completar - Marcar pedido como completado
  */
 async function handleCompletarCommand(chatId: number, userId: string) {
-  const { data: requests, error } = await getSupabase()
+  let completarQuery = getSupabase()
     .from('requests')
     .select('*')
     .in('status', ['pending', 'in_progress'])
     .order('deadline', { ascending: true })
     .limit(10);
+
+  if (TEAM_ID) {
+    completarQuery = completarQuery.eq('team_id', TEAM_ID);
+  }
+
+  const { data: requests, error } = await completarQuery;
 
   if (error) {
     await sendMessage(chatId, '❌ Error al obtener los pedidos. Intenta de nuevo.');
@@ -719,11 +745,17 @@ async function handleCompletarCommand(chatId: number, userId: string) {
  * Comando /ver - Muestra todos los pedidos activos
  */
 async function handleVerCommand(chatId: number) {
-  const { data: requests, error } = await getSupabase()
+  let verQuery = getSupabase()
     .from('requests')
     .select('*')
     .in('status', ['pending', 'in_progress'])
     .order('deadline', { ascending: true });
+
+  if (TEAM_ID) {
+    verQuery = verQuery.eq('team_id', TEAM_ID);
+  }
+
+  const { data: requests, error } = await verQuery;
 
   if (error) {
     await sendMessage(chatId, '❌ Error al obtener los pedidos. Intenta de nuevo.');
@@ -768,10 +800,16 @@ async function handleMiosCommand(chatId: number, userId: string) {
  * Comando /hoy - Pedidos que vencen hoy
  */
 async function handleHoyCommand(chatId: number) {
-  const { data: requests, error } = await getSupabase()
+  let hoyQuery = getSupabase()
     .from('requests')
     .select('*')
     .in('status', ['pending', 'in_progress']);
+
+  if (TEAM_ID) {
+    hoyQuery = hoyQuery.eq('team_id', TEAM_ID);
+  }
+
+  const { data: requests, error } = await hoyQuery;
 
   if (error) {
     await sendMessage(chatId, '❌ Error al obtener los pedidos. Intenta de nuevo.');
@@ -802,10 +840,16 @@ async function handleHoyCommand(chatId: number) {
  * Comando /semana - Pedidos de esta semana
  */
 async function handleSemanaCommand(chatId: number) {
-  const { data: requests, error } = await getSupabase()
+  let semanaQuery = getSupabase()
     .from('requests')
     .select('*')
     .in('status', ['pending', 'in_progress']);
+
+  if (TEAM_ID) {
+    semanaQuery = semanaQuery.eq('team_id', TEAM_ID);
+  }
+
+  const { data: requests, error } = await semanaQuery;
 
   if (error) {
     await sendMessage(chatId, '❌ Error al obtener los pedidos. Intenta de nuevo.');
@@ -836,10 +880,16 @@ async function handleSemanaCommand(chatId: number) {
  * Comando /urgente - Pedidos urgentes (< 2 días)
  */
 async function handleUrgenteCommand(chatId: number) {
-  const { data: requests, error } = await getSupabase()
+  let urgenteQuery = getSupabase()
     .from('requests')
     .select('*')
     .in('status', ['pending', 'in_progress']);
+
+  if (TEAM_ID) {
+    urgenteQuery = urgenteQuery.eq('team_id', TEAM_ID);
+  }
+
+  const { data: requests, error } = await urgenteQuery;
 
   if (error) {
     await sendMessage(chatId, '❌ Error al obtener los pedidos. Intenta de nuevo.');

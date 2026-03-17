@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { Request } from '@/lib/types';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
+const TEAM_ID = process.env.NEXT_PUBLIC_TEAM_ID;
+
 interface UseRealtimeRequestsOptions {
   onInsert?: (request: Request) => void;
   onUpdate?: (request: Request) => void;
@@ -38,10 +40,16 @@ export function useRealtimeRequests(
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from('requests')
         .select('*')
         .order('deadline', { ascending: true });
+
+      if (TEAM_ID) {
+        query = query.eq('team_id', TEAM_ID);
+      }
+
+      const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
       setRequests(data || []);
@@ -57,6 +65,11 @@ export function useRealtimeRequests(
   useEffect(() => {
     fetchRequests();
 
+    // Realtime filter: only listen for this team's changes
+    const realtimeFilter = TEAM_ID
+      ? `team_id=eq.${TEAM_ID}`
+      : undefined;
+
     // Create realtime channel
     const channel = supabase
       .channel('requests-changes')
@@ -66,6 +79,7 @@ export function useRealtimeRequests(
           event: 'INSERT',
           schema: 'public',
           table: 'requests',
+          ...(realtimeFilter && { filter: realtimeFilter }),
         },
         (payload) => {
           const newRequest = payload.new as Request;
@@ -84,6 +98,7 @@ export function useRealtimeRequests(
           event: 'UPDATE',
           schema: 'public',
           table: 'requests',
+          ...(realtimeFilter && { filter: realtimeFilter }),
         },
         (payload) => {
           const updatedRequest = payload.new as Request;
@@ -99,6 +114,7 @@ export function useRealtimeRequests(
           event: 'DELETE',
           schema: 'public',
           table: 'requests',
+          ...(realtimeFilter && { filter: realtimeFilter }),
         },
         (payload) => {
           const deletedId = (payload.old as { id: string }).id;

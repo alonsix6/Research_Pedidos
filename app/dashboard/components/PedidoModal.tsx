@@ -10,6 +10,8 @@ import { X, Briefcase, FileText, User, Calendar, Send, Loader2 } from 'lucide-re
 import Button3D from './controls/Button3D';
 import CalendarPicker from './controls/CalendarPicker';
 
+const TEAM_ID = process.env.NEXT_PUBLIC_TEAM_ID;
+
 interface ModalUser {
   id: string;
   name: string;
@@ -83,7 +85,11 @@ export default function PedidoModal({
   }, [isOpen, editingRequest]);
 
   async function loadUsers() {
-    const { data } = await supabase.from('users').select('id, name').order('name');
+    let query = supabase.from('users').select('id, name').order('name');
+    if (TEAM_ID) {
+      query = query.eq('team_id', TEAM_ID);
+    }
+    const { data } = await query;
     if (data) {
       setUsers(data);
     }
@@ -154,6 +160,7 @@ export default function PedidoModal({
         const { error } = await supabase.from('requests').insert({
           ...requestData,
           created_by: users[0]?.id || null,
+          ...(TEAM_ID && { team_id: TEAM_ID }),
         });
 
         if (error) throw error;

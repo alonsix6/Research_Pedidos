@@ -41,6 +41,7 @@ import { useRealtimeRequests } from '@/lib/hooks/useRealtimeRequests';
 import { useTeamMembers } from '@/lib/hooks/useTeamMembers';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { useToast } from './components/Toast';
+import { useTeamInfo } from '@/lib/hooks/useTeamInfo';
 
 // Device components
 import DeviceFrame from './components/device/DeviceFrame';
@@ -69,6 +70,9 @@ export default function DashboardPage() {
   const { playClick, playSuccess, playWhoosh, playNotification } = useAppSound(settings.soundEnabled);
   const { showToast } = useToast();
   const { theme, toggleTheme, isDark } = useTheme();
+
+  // Team info
+  const { team } = useTeamInfo();
 
   // Team members
   const { members: teamMembers } = useTeamMembers();
@@ -314,7 +318,7 @@ export default function DashboardPage() {
       <header className="flex items-start justify-between p-4 pb-2">
         <div>
           <h1 className="text-lg font-bold tracking-wide" style={{ color: 'var(--header-text)' }}>
-            RESET R&A
+            {team?.name?.toUpperCase() || 'PEDIDOS'}
           </h1>
           <p className="text-[10px] uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--footer-text)' }}>
             Sistema de Pedidos v2.0
