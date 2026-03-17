@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { calculatePriority } from '@/lib/utils';
 import { X, Briefcase, FileText, User, Calendar, Send, Loader2 } from 'lucide-react';
 import Button3D from './controls/Button3D';
+import CalendarPicker from './controls/CalendarPicker';
 
 interface ModalUser {
   id: string;
@@ -334,16 +335,13 @@ export default function PedidoModal({
                     error={errors.deadline}
                     required
                   >
-                    <input
+                    <CalendarPicker
                       id={`${formId}-deadline`}
-                      type="date"
                       value={formData.deadline}
-                      onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-                      className="input-lcd w-full"
-                      min={new Date().toISOString().split('T')[0]}
-                      aria-invalid={!!errors.deadline}
-                      aria-describedby={errors.deadline ? `${formId}-deadline-error` : undefined}
-                      required
+                      onChange={(date) => setFormData({ ...formData, deadline: date })}
+                      minDate={new Date()}
+                      error={!!errors.deadline}
+                      ariaDescribedBy={errors.deadline ? `${formId}-deadline-error` : undefined}
                     />
                   </FormField>
 
