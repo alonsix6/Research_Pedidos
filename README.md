@@ -189,10 +189,12 @@ Research_Pedidos/
 │
 ├── scripts/
 │   ├── daily-reminder.js             # Recordatorio diario (filtrado por team_id)
+│   ├── weekly-summary.js             # Resumen semanal (filtrado por team_id)
 │   └── insert-users.sql              # SQL para insertar usuarios
 │
 ├── .github/workflows/
 │   ├── daily-reminder.yml            # Cron: 9AM Lima, L-V
+│   ├── weekly-summary.yml            # Cron: Viernes 3PM Lima
 │   └── check-webhook.yml             # Cron: cada 6h, verifica webhook
 │
 ├── .env.example                      # Template de variables de entorno
@@ -719,6 +721,16 @@ Inspirado en el **Teenage Engineering OP-1**:
 | **Cron** | `0 14 * * 1-5` |
 | **Script** | `scripts/daily-reminder.js` |
 | **Función** | Envía resumen de pedidos urgentes del equipo al grupo de Telegram |
+
+### Resumen Semanal
+
+| Config | Valor |
+|--------|-------|
+| **Archivo** | `.github/workflows/weekly-summary.yml` |
+| **Horario** | 3:00 PM Lima = 20:00 UTC, Viernes |
+| **Cron** | `0 20 * * 5` |
+| **Script** | `scripts/weekly-summary.js` |
+| **Función** | Envía resumen de la semana: pedidos completados, pendientes, atrasados y frase motivacional |
 
 ### Verificación de Webhook
 
