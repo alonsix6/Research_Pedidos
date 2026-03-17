@@ -380,7 +380,7 @@ export const handler: Handler = async (event) => {
 
     // Comandos del bot
     if (text.startsWith('/')) {
-      const command = text.split(' ')[0].toLowerCase();
+      const command = text.split(' ')[0].split('@')[0].toLowerCase();
 
       switch (command) {
         case '/start':
