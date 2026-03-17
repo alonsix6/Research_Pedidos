@@ -137,7 +137,7 @@ export default function CalendarPicker({
             transition={{ duration: 0.15 }}
             role="dialog"
             aria-label="Calendario"
-            className="absolute z-50 mt-1 w-full"
+            className="mt-1 w-full"
             style={{
               background: '#0D0D0D',
               border: '2px solid #1A1A1A',
@@ -216,8 +216,8 @@ export default function CalendarPicker({
                     onClick={() => !isDisabled && handleSelect(day)}
                     className="relative flex flex-col items-center justify-center rounded-sm transition-all"
                     style={{
-                      height: '32px',
-                      fontSize: '12px',
+                      height: '28px',
+                      fontSize: '11px',
                       fontWeight: isSelected ? 600 : 400,
                       color: isDisabled
                         ? '#1A1A1A'
