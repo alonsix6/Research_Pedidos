@@ -62,6 +62,7 @@ import ShortcutsModal from './components/ShortcutsModal';
 import SettingsDropdown from './components/SettingsDropdown';
 import { StatsSkeleton, SectionSkeleton } from './components/LoadingSkeleton';
 
+const TEAM_ID = process.env.NEXT_PUBLIC_TEAM_ID;
 const MAX_VISIBLE_COMPLETED = 3;
 
 export default function DashboardPage() {
@@ -167,13 +168,19 @@ export default function DashboardPage() {
 
   async function handleComplete(id: string) {
     try {
-      const { error } = await supabase
+      let query = supabase
         .from('requests')
         .update({
           status: 'completed',
           completed_at: new Date().toISOString(),
         })
         .eq('id', id);
+
+      if (TEAM_ID) {
+        query = query.eq('team_id', TEAM_ID);
+      }
+
+      const { error } = await query;
 
       if (error) throw error;
       playSuccess();
@@ -194,7 +201,13 @@ export default function DashboardPage() {
     if (!confirm('Seguro que deseas eliminar este pedido?')) return;
 
     try {
-      const { error } = await supabase.from('requests').delete().eq('id', id);
+      let query = supabase.from('requests').delete().eq('id', id);
+
+      if (TEAM_ID) {
+        query = query.eq('team_id', TEAM_ID);
+      }
+
+      const { error } = await query;
 
       if (error) throw error;
       showToast('info', 'Eliminado', 'El pedido ha sido eliminado');

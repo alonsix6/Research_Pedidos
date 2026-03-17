@@ -1,6 +1,8 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { ConversationStep, NewRequestData, CompleteRequestData } from './types';
 
+const TEAM_ID = process.env.TEAM_ID;
+
 /**
  * Helper para gestionar el estado de conversaciones
  */
@@ -19,12 +21,17 @@ export async function getConversationState(
   userId: string,
   supabase: SupabaseClient
 ): Promise<ConversationState | null> {
-  const { data, error } = await supabase
+  let query = supabase
     .from('conversation_state')
     .select('*')
     .eq('chat_id', chatId.toString())
-    .eq('user_id', userId.toString())
-    .single();
+    .eq('user_id', userId.toString());
+
+  if (TEAM_ID) {
+    query = query.eq('team_id', TEAM_ID);
+  }
+
+  const { data, error } = await query.single();
 
   if (error || !data) {
     return null;
@@ -53,6 +60,7 @@ export async function saveConversationState(
       step: state.step,
       data: state.data,
       updated_at: new Date().toISOString(),
+      ...(TEAM_ID && { team_id: TEAM_ID }),
     });
 
   if (error) {
@@ -68,11 +76,17 @@ export async function clearConversationState(
   userId: string,
   supabase: SupabaseClient
 ): Promise<void> {
-  await supabase
+  let deleteQuery = supabase
     .from('conversation_state')
     .delete()
     .eq('chat_id', chatId.toString())
     .eq('user_id', userId.toString());
+
+  if (TEAM_ID) {
+    deleteQuery = deleteQuery.eq('team_id', TEAM_ID);
+  }
+
+  await deleteQuery;
 }
 
 /**
