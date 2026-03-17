@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabase';
 import { formatLimaDate } from '@/lib/utils';
 import Button3D from './controls/Button3D';
 
+const TEAM_ID = process.env.NEXT_PUBLIC_TEAM_ID;
+
 interface HistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -38,6 +40,10 @@ export default function HistoryModal({ isOpen, onClose }: HistoryModalProps) {
         .select('*', { count: 'exact' })
         .eq('status', 'completed')
         .order('completed_at', { ascending: false });
+
+      if (TEAM_ID) {
+        query = query.eq('team_id', TEAM_ID);
+      }
 
       // Apply search filter if present
       if (searchQuery.trim()) {

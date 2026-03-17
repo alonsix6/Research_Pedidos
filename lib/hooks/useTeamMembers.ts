@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@/lib/types';
 
+const TEAM_ID = process.env.NEXT_PUBLIC_TEAM_ID;
+
 interface UseTeamMembersReturn {
   members: User[];
   loading: boolean;
@@ -19,10 +21,16 @@ export function useTeamMembers(): UseTeamMembersReturn {
     async function fetchMembers() {
       try {
         setLoading(true);
-        const { data, error: fetchError } = await supabase
+        let query = supabase
           .from('users')
           .select('*')
           .order('name', { ascending: true });
+
+        if (TEAM_ID) {
+          query = query.eq('team_id', TEAM_ID);
+        }
+
+        const { data, error: fetchError } = await query;
 
         if (fetchError) throw fetchError;
         setMembers(data || []);

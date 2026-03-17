@@ -3,6 +3,7 @@ import { formatLimaDate, formatDaysLeft, getPriorityEmoji, getStatusEmoji } from
 import { SupabaseClient } from '@supabase/supabase-js';
 
 const TELEGRAM_API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
+const TEAM_ID = process.env.TEAM_ID;
 
 // Tipos para inline keyboard
 export interface InlineKeyboardButton {
@@ -266,7 +267,7 @@ export function formatRequestsList(requests: Request[], title: string = 'Pedidos
  * Mensaje de ayuda con todos los comandos
  */
 export function getHelpMessage(): string {
-  return `🤖 *Reset R&A - Bot de Pedidos*
+  return `🤖 *Bot de Pedidos*
 
 📝 *Comandos principales:*
 
@@ -297,7 +298,7 @@ export function getHelpMessage(): string {
  * Mensaje de bienvenida
  */
 export function getWelcomeMessage(): string {
-  return `👋 ¡Hola! Soy el bot de gestión de pedidos del equipo Reset R&A.
+  return `👋 ¡Hola! Soy el bot de gestión de pedidos del equipo.
 
 Usa /ayuda para ver todos los comandos disponibles.
 
@@ -305,30 +306,39 @@ Usa /ayuda para ver todos los comandos disponibles.
 }
 
 /**
- * Valida que el mensaje venga de un usuario autorizado
+ * Valida que el mensaje venga de un usuario autorizado (en el team actual)
  */
 export async function isAuthorizedUser(telegramId: string, supabase: SupabaseClient): Promise<boolean> {
-  const { data, error } = await supabase
+  let query = supabase
     .from('users')
     .select('id')
-    .eq('telegram_id', telegramId)
-    .single();
+    .eq('telegram_id', telegramId);
 
+  if (TEAM_ID) {
+    query = query.eq('team_id', TEAM_ID);
+  }
+
+  const { data, error } = await query.single();
   return !error && !!data;
 }
 
 /**
- * Obtiene el usuario desde Telegram ID
+ * Obtiene el usuario desde Telegram ID (filtrado por team)
  */
 export async function getUserByTelegramId(
   telegramId: string,
   supabase: SupabaseClient
 ): Promise<User | null> {
-  const { data, error } = await supabase
+  let query = supabase
     .from('users')
     .select('*')
-    .eq('telegram_id', telegramId)
-    .single();
+    .eq('telegram_id', telegramId);
+
+  if (TEAM_ID) {
+    query = query.eq('team_id', TEAM_ID);
+  }
+
+  const { data, error } = await query.single();
 
   if (error || !data) {
     return null;

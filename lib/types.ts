@@ -6,12 +6,20 @@ export type RequestStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled
 
 export type RequestPriority = 'low' | 'normal' | 'high' | 'urgent';
 
+export interface Team {
+  id: string;
+  name: string;
+  slug: string;
+  created_at?: string;
+}
+
 export interface User {
   id: string;
   telegram_id: string;
   telegram_username: string | null;
   name: string;
   role: UserRole;
+  team_id: string | null;
   created_at?: string;
 }
 
@@ -30,6 +38,7 @@ export interface Request {
   completed_at: string | null;
   created_by: string;
   updated_at: string;
+  team_id: string | null;
 }
 
 export interface ActivityLog {
@@ -39,6 +48,7 @@ export interface ActivityLog {
   action: string;
   details: Record<string, unknown>;
   created_at: string;
+  team_id: string | null;
 }
 
 export interface ConversationState {
@@ -47,6 +57,7 @@ export interface ConversationState {
   step: string;
   data: NewRequestData | CompleteRequestData;
   updated_at: string;
+  team_id: string | null;
 }
 
 // Tipos extendidos para el dashboard

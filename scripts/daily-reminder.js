@@ -12,6 +12,7 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const TEAM_ID = process.env.TEAM_ID;
 
 // Validar variables de entorno
 if (!SUPABASE_URL || !SUPABASE_KEY || !TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
@@ -82,12 +83,18 @@ async function main() {
   try {
     console.log('🔔 Iniciando recordatorio diario...');
 
-    // Obtener pedidos activos
-    const { data: requests, error } = await supabase
+    // Obtener pedidos activos (filtrados por equipo)
+    let query = supabase
       .from('requests')
       .select('*')
       .in('status', ['pending', 'in_progress'])
       .order('deadline', { ascending: true });
+
+    if (TEAM_ID) {
+      query = query.eq('team_id', TEAM_ID);
+    }
+
+    const { data: requests, error } = await query;
 
     if (error) {
       throw new Error(`Error fetching requests: ${error.message}`);
@@ -115,8 +122,21 @@ async function main() {
       return daysLeft > 2 && daysLeft <= 7;
     });
 
+    // Obtener nombre del equipo
+    let teamName = 'equipo';
+    if (TEAM_ID) {
+      const { data: teamData } = await supabase
+        .from('teams')
+        .select('name')
+        .eq('id', TEAM_ID)
+        .single();
+      if (teamData) {
+        teamName = teamData.name;
+      }
+    }
+
     // Construir mensaje
-    let message = '🔔 *Buenos días equipo Reset R&A!*\n\n';
+    let message = `🔔 *Buenos días ${teamName}!*\n\n`;
     message += `📊 *PEDIDOS ACTIVOS (${requests.length})*\n\n`;
 
     // Pedidos urgentes (vencen hoy o atrasados)
