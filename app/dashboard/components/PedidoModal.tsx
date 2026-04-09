@@ -189,18 +189,13 @@ export default function PedidoModal({
           });
         }
       } else {
-        const { data: insertedData, error } = await supabase.from('requests').insert({
+        const { error } = await supabase.from('requests').insert({
           ...requestData,
           created_by: users[0]?.id || null,
           ...(TEAM_ID && { team_id: TEAM_ID }),
-        }).select('id').single();
+        });
 
         if (error) throw error;
-
-        // Log creation
-        if (insertedData) {
-          await logActivity(insertedData.id, users[0]?.id || null, 'created', {});
-        }
       }
 
       onSuccess();
