@@ -3,17 +3,19 @@
 import { useState } from 'react';
 import { Request } from '@/lib/types';
 import { formatLimaDate, formatDaysLeft } from '@/lib/utils';
-import { Check, Pencil, Trash2, GripVertical, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, Pencil, Trash2, GripVertical, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { padVariants, springs } from '@/lib/animations';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import StatusBadge, { StatusLED } from './StatusBadge';
 
 interface PedidoPadProps {
   request: Request;
   onComplete?: (id: string) => void;
   onEdit?: (request: Request) => void;
   onDelete?: (id: string) => void;
+  onOpenDetail?: (request: Request) => void;
   compact?: boolean;
   isDraggable?: boolean;
   /** Start collapsed - useful for large lists */
@@ -28,6 +30,7 @@ export default function PedidoPad({
   onComplete,
   onEdit,
   onDelete,
+  onOpenDetail,
   compact = false,
   isDraggable = false,
   defaultCollapsed = false,
@@ -37,13 +40,7 @@ export default function PedidoPad({
   const isLongDescription = request.description.length > DESCRIPTION_TRUNCATE_LENGTH;
   const isUrgent = daysLeft.includes('Atrasado') || daysLeft.includes('HOY');
   const isCompleted = request.status === 'completed';
-
-  const priorityColor = {
-    urgent: '#E53935',
-    high: '#FFD600',
-    normal: '#00C853',
-    low: '#666666',
-  }[request.priority] || '#666666';
+  const isBlocked = request.status === 'blocked';
 
   // DnD Kit sortable
   const {
@@ -73,6 +70,7 @@ export default function PedidoPad({
         relative rounded-md overflow-hidden
         ${isCompleted ? 'pad-card-completed' : 'pad-card'}
         ${isDragging ? 'shadow-2xl' : ''}
+        ${onOpenDetail ? 'cursor-pointer' : ''}
       `}
       variants={padVariants}
       initial="initial"
@@ -82,36 +80,28 @@ export default function PedidoPad({
       whileTap={!isDragging ? "tap" : undefined}
       layout
       aria-label={`Pedido de ${request.client}: ${request.description.slice(0, 50)}${request.description.length > 50 ? '...' : ''}`}
+      onClick={(e) => {
+        // Don't open detail if clicking on action buttons or drag handle
+        if ((e.target as HTMLElement).closest('button, [data-drag-handle]')) return;
+        onOpenDetail?.(request);
+      }}
     >
       {/* Drag handle */}
       {isDraggable && !isCompleted && (
         <div
           {...attributes}
           {...listeners}
+          data-drag-handle
           className="absolute top-2 left-2 cursor-grab active:cursor-grabbing p-1 rounded hover:bg-white/10 transition-colors"
         >
           <GripVertical size={12} className="text-gray-600" />
         </div>
       )}
 
-      {/* LED indicador de prioridad - con pulso para urgentes */}
-      <motion.div
-        className="absolute top-2 right-2 w-2 h-2 rounded-full"
-        style={{
-          background: isCompleted ? '#555' : priorityColor,
-          boxShadow: isCompleted
-            ? 'inset 0 1px 2px rgba(0,0,0,0.3)'
-            : `0 0 6px ${priorityColor}, 0 0 10px ${priorityColor}50`,
-        }}
-        animate={
-          isUrgent && !isCompleted
-            ? { opacity: [0.7, 1, 0.7], scale: [1, 1.1, 1] }
-            : {}
-        }
-        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-        role="status"
-        aria-label={`Prioridad: ${request.priority}${isUrgent ? ', urgente' : ''}`}
-      />
+      {/* Status Badge - replaces the old LED */}
+      <div className="absolute top-2 right-2">
+        <StatusBadge status={request.status} size="sm" showLabel={!compact} />
+      </div>
 
       {/* Contenido */}
       <div className={`${isDraggable && !isCompleted ? 'pl-6' : ''} pr-4`}>
@@ -153,7 +143,7 @@ export default function PedidoPad({
             </AnimatePresence>
             {isLongDescription && (
               <button
-                onClick={() => setIsExpanded(!isExpanded)}
+                onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
                 className="flex items-center gap-0.5 text-[9px] mt-1 hover:text-[#00E5FF] transition-colors"
                 style={{ color: '#666' }}
                 aria-expanded={isExpanded}
@@ -175,6 +165,16 @@ export default function PedidoPad({
           </div>
         )}
 
+        {/* Blocked reason indicator */}
+        {isBlocked && request.blocked_reason && !compact && (
+          <div
+            className="mb-2 px-2 py-1 rounded text-[9px]"
+            style={{ background: 'rgba(229,57,53,0.1)', color: '#EF5350', border: '1px solid rgba(229,57,53,0.15)' }}
+          >
+            Bloqueado: {request.blocked_reason.length > 60 ? request.blocked_reason.slice(0, 60) + '...' : request.blocked_reason}
+          </div>
+        )}
+
         {/* Info */}
         <div className={`flex items-center gap-3 ${compact ? 'text-[8px]' : 'text-[9px]'}`} style={{ color: '#949494' }}>
           <span>{request.requester_name}</span>
@@ -190,20 +190,20 @@ export default function PedidoPad({
         {!isCompleted && (
           <div
             className={`mt-2 font-medium ${compact ? 'text-[9px]' : 'text-[10px]'}`}
-            style={{ color: isUrgent ? '#E53935' : '#00C853' }}
+            style={{ color: isUrgent ? '#E53935' : isBlocked ? '#E53935' : '#00C853' }}
           >
-            {daysLeft}
+            {isBlocked ? 'Bloqueado' : daysLeft}
           </div>
         )}
       </div>
 
       {/* Acciones */}
-      {(onComplete || onEdit || onDelete) && !isCompleted && (
+      {(onComplete || onEdit || onDelete || onOpenDetail) && !isCompleted && (
         <div
           className={`flex items-center gap-1 ${compact ? 'mt-2 pt-1.5' : 'mt-3 pt-2'}`}
           style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
         >
-          {onComplete && (
+          {onComplete && request.status === 'in_review' && (
             <ActionButton
               onClick={() => onComplete(request.id)}
               color="green"
@@ -231,6 +231,16 @@ export default function PedidoPad({
               compact={compact}
             >
               <Trash2 size={compact ? 10 : 12} />
+            </ActionButton>
+          )}
+          {onOpenDetail && (
+            <ActionButton
+              onClick={() => onOpenDetail(request)}
+              color="grey"
+              title="Ver detalle"
+              compact={compact}
+            >
+              <ExternalLink size={compact ? 10 : 12} />
             </ActionButton>
           )}
         </div>
@@ -293,7 +303,7 @@ function ActionButton({
 
   return (
     <motion.button
-      onClick={onClick}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
       aria-label={title}
       className={`flex items-center justify-center ${size} rounded-sm`}
       style={{

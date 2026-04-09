@@ -1,0 +1,29 @@
+name: Auto Escalation
+
+on:
+  schedule:
+    # Runs daily at 14:30 UTC (9:30 AM Lima), after daily reminder
+    - cron: '30 14 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  auto-escalation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run auto escalation
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+        run: node scripts/auto-escalation.js

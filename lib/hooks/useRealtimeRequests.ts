@@ -19,6 +19,9 @@ interface UseRealtimeRequestsReturn {
   error: string | null;
   isConnected: boolean;
   refresh: () => Promise<void>;
+  optimisticUpdate: (id: string, changes: Partial<Request>) => void;
+  optimisticDelete: (id: string) => void;
+  optimisticInsert: (request: Request) => void;
 }
 
 export function useRealtimeRequests(
@@ -33,6 +36,10 @@ export function useRealtimeRequests(
   // Store callbacks in ref to avoid re-subscribing on every render
   const optionsRef = useRef(options);
   optionsRef.current = options;
+
+  // Sort helper
+  const sortByDeadline = (items: Request[]) =>
+    [...items].sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
 
   // Initial fetch
   const fetchRequests = useCallback(async () => {
@@ -61,6 +68,21 @@ export function useRealtimeRequests(
     }
   }, []);
 
+  // Optimistic update methods for immediate UI feedback
+  const optimisticUpdate = useCallback((id: string, changes: Partial<Request>) => {
+    setRequests((prev) =>
+      sortByDeadline(prev.map((r) => (r.id === id ? { ...r, ...changes } : r)))
+    );
+  }, []);
+
+  const optimisticDelete = useCallback((id: string) => {
+    setRequests((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+
+  const optimisticInsert = useCallback((request: Request) => {
+    setRequests((prev) => sortByDeadline([...prev, request]));
+  }, []);
+
   // Setup realtime subscription - only runs once on mount
   useEffect(() => {
     fetchRequests();
@@ -84,10 +106,11 @@ export function useRealtimeRequests(
         (payload) => {
           const newRequest = payload.new as Request;
           setRequests((prev) => {
-            const newList = [...prev, newRequest].sort(
-              (a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
-            );
-            return newList;
+            // Avoid duplicates (in case optimistic insert already added it)
+            if (prev.some((r) => r.id === newRequest.id)) {
+              return prev.map((r) => (r.id === newRequest.id ? newRequest : r));
+            }
+            return sortByDeadline([...prev, newRequest]);
           });
           optionsRef.current.onInsert?.(newRequest);
         }
@@ -103,7 +126,7 @@ export function useRealtimeRequests(
         (payload) => {
           const updatedRequest = payload.new as Request;
           setRequests((prev) =>
-            prev.map((r) => (r.id === updatedRequest.id ? updatedRequest : r))
+            sortByDeadline(prev.map((r) => (r.id === updatedRequest.id ? updatedRequest : r)))
           );
           optionsRef.current.onUpdate?.(updatedRequest);
         }
@@ -142,5 +165,8 @@ export function useRealtimeRequests(
     error,
     isConnected,
     refresh: fetchRequests,
+    optimisticUpdate,
+    optimisticDelete,
+    optimisticInsert,
   };
 }

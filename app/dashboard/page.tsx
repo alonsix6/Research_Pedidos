@@ -2,8 +2,10 @@
 
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Request } from '@/lib/types';
+import { Request, RequestStatus } from '@/lib/types';
 import { classifyByUrgency } from '@/lib/utils';
+import { logActivity } from '@/lib/activityLog';
+import { canTransition } from '@/lib/statusMachine';
 import { motion, AnimatePresence } from 'framer-motion';
 import { staggerContainerVariants, staggerItemVariants } from '@/lib/animations';
 import {
@@ -16,6 +18,9 @@ import {
   Keyboard,
   Wifi,
   WifiOff,
+  LayoutGrid,
+  List,
+  BarChart3,
 } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 import {
@@ -61,9 +66,14 @@ import HistoryModal from './components/HistoryModal';
 import ShortcutsModal from './components/ShortcutsModal';
 import SettingsDropdown from './components/SettingsDropdown';
 import { StatsSkeleton, SectionSkeleton } from './components/LoadingSkeleton';
+import PedidoDetailPanel from './components/PedidoDetailPanel';
+import KanbanBoard from './components/KanbanBoard';
+import AnalyticsPanel from './components/AnalyticsPanel';
 
 const TEAM_ID = process.env.NEXT_PUBLIC_TEAM_ID;
 const MAX_VISIBLE_COMPLETED = 3;
+
+type ViewMode = 'list' | 'kanban';
 
 export default function DashboardPage() {
   // Settings & Preferences
@@ -86,11 +96,16 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [showAnalytics, setShowAnalytics] = useState(false);
+
+  // Detail Panel
+  const [detailRequest, setDetailRequest] = useState<Request | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Realtime data
-  const { requests, loading, error, isConnected, refresh } = useRealtimeRequests({
+  // Realtime data with optimistic updates
+  const { requests, loading, error, isConnected, refresh, optimisticUpdate, optimisticDelete } = useRealtimeRequests({
     onInsert: (req) => {
       playNotification();
       showToast('notification', 'Nuevo pedido', `${req.client}: ${req.description.slice(0, 50)}...`);
@@ -167,12 +182,24 @@ export default function DashboardPage() {
   });
 
   async function handleComplete(id: string) {
+    const request = requests.find((r) => r.id === id);
+    if (!request) return;
+
+    // Optimistic update
+    optimisticUpdate(id, {
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
     try {
       let query = supabase
         .from('requests')
         .update({
           status: 'completed',
           completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          status_changed_at: new Date().toISOString(),
         })
         .eq('id', id);
 
@@ -181,12 +208,20 @@ export default function DashboardPage() {
       }
 
       const { error } = await query;
-
       if (error) throw error;
+
+      // Log activity
+      await logActivity(id, null, 'completed', {
+        from_status: request.status,
+        to_status: 'completed',
+      });
+
       playSuccess();
       showToast('success', 'Completado!', 'El pedido ha sido marcado como completado');
     } catch (err) {
       console.error('Error completing request:', err);
+      // Revert optimistic update
+      optimisticUpdate(id, { status: request.status, completed_at: null });
       showToast('error', 'Error', 'No se pudo completar el pedido');
     }
   }
@@ -200,6 +235,10 @@ export default function DashboardPage() {
   async function handleDelete(id: string) {
     if (!confirm('Seguro que deseas eliminar este pedido?')) return;
 
+    const request = requests.find((r) => r.id === id);
+    // Optimistic delete
+    optimisticDelete(id);
+
     try {
       let query = supabase.from('requests').delete().eq('id', id);
 
@@ -208,13 +247,39 @@ export default function DashboardPage() {
       }
 
       const { error } = await query;
-
       if (error) throw error;
       showToast('info', 'Eliminado', 'El pedido ha sido eliminado');
     } catch (err) {
       console.error('Error deleting request:', err);
+      // Revert - refresh to get original state
+      refresh();
       showToast('error', 'Error', 'No se pudo eliminar el pedido');
     }
+  }
+
+  function handleOpenDetail(request: Request) {
+    playClick();
+    setDetailRequest(request);
+  }
+
+  function handleStatusChange(id: string, newStatus: RequestStatus) {
+    // Optimistic update
+    optimisticUpdate(id, {
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+      status_changed_at: new Date().toISOString(),
+      ...(newStatus === 'completed' && { completed_at: new Date().toISOString() }),
+    });
+
+    // Update the detail panel's request if it's open
+    if (detailRequest?.id === id) {
+      setDetailRequest((prev) =>
+        prev ? { ...prev, status: newStatus, updated_at: new Date().toISOString() } : null
+      );
+    }
+
+    playSuccess();
+    showToast('success', 'Estado actualizado', `Cambiado a ${newStatus}`);
   }
 
   async function handleDragEnd(event: DragEndEvent) {
@@ -225,7 +290,7 @@ export default function DashboardPage() {
 
   // Computed data
   const activeRequests = useMemo(() =>
-    requests.filter((r) => r.status === 'pending' || r.status === 'in_progress'),
+    requests.filter((r) => r.status !== 'completed' && r.status !== 'cancelled'),
     [requests]
   );
 
@@ -257,7 +322,7 @@ export default function DashboardPage() {
     }
 
     const memberRequests = requests.filter(r => r.assigned_to === selectedMember);
-    const memberActive = memberRequests.filter(r => r.status === 'pending' || r.status === 'in_progress');
+    const memberActive = memberRequests.filter(r => r.status !== 'completed' && r.status !== 'cancelled');
     const memberCompleted = memberRequests.filter(r => r.status === 'completed');
     const memberUrgent = memberActive.filter(r => r.priority === 'urgent' || r.priority === 'high');
 
@@ -319,6 +384,43 @@ export default function DashboardPage() {
   const visibleCompleted = completedRequests.slice(0, MAX_VISIBLE_COMPLETED);
   const hasMoreCompleted = completedRequests.length > MAX_VISIBLE_COMPLETED;
 
+  // Render list section helper
+  const renderSection = (title: string, items: Request[], color: 'red' | 'orange' | 'green' | 'cyan', sectionKey: string) => {
+    if (items.length === 0) return null;
+    return (
+      <motion.section
+        key={sectionKey}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+      >
+        <SectionHeader title={title} count={items.length} color={color} />
+        <SortableContext items={items.map((r) => r.id)} strategy={verticalListSortingStrategy}>
+          <motion.div
+            variants={staggerContainerVariants}
+            initial="initial"
+            animate="animate"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
+          >
+            {items.map((request) => (
+              <motion.div key={request.id} variants={staggerItemVariants}>
+                <PedidoPad
+                  request={request}
+                  onComplete={request.status === 'in_review' ? handleComplete : undefined}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onOpenDetail={handleOpenDetail}
+                  compact={settings.compactView}
+                  isDraggable
+                />
+              </motion.div>
+            ))}
+          </motion.div>
+        </SortableContext>
+      </motion.section>
+    );
+  };
+
   return (
     <ErrorBoundary>
     <DeviceFrame>
@@ -334,7 +436,7 @@ export default function DashboardPage() {
             {team?.name?.toUpperCase() || 'PEDIDOS'}
           </h1>
           <p className="text-[10px] uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--footer-text)' }}>
-            Sistema de Pedidos v2.0
+            Sistema de Pedidos v3.0
             <span className="flex items-center gap-1">
               {isConnected ? (
                 <motion.span
@@ -397,7 +499,7 @@ export default function DashboardPage() {
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -1px 0 rgba(0,0,0,0.1)',
         }}
       >
-        {/* Left controls - Settings dropdown */}
+        {/* Left controls - Settings + View toggle */}
         <nav className="flex items-center gap-2" aria-label="Controles de visualización">
           <SettingsDropdown
             soundEnabled={settings.soundEnabled}
@@ -407,6 +509,35 @@ export default function DashboardPage() {
             isDark={isDark}
             onToggleTheme={() => { playClick(); toggleTheme(); }}
           />
+          {/* View mode toggle */}
+          <div className="flex items-center rounded-sm overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+            <motion.button
+              onClick={() => { playClick(); setViewMode('list'); }}
+              className="p-1.5"
+              style={{
+                background: viewMode === 'list' ? 'rgba(255,69,0,0.3)' : 'transparent',
+                color: viewMode === 'list' ? '#FF4500' : '#666',
+              }}
+              whileTap={{ scale: 0.95 }}
+              aria-label="Vista de lista"
+              title="Vista de lista"
+            >
+              <List size={14} />
+            </motion.button>
+            <motion.button
+              onClick={() => { playClick(); setViewMode('kanban'); }}
+              className="p-1.5"
+              style={{
+                background: viewMode === 'kanban' ? 'rgba(255,69,0,0.3)' : 'transparent',
+                color: viewMode === 'kanban' ? '#FF4500' : '#666',
+              }}
+              whileTap={{ scale: 0.95 }}
+              aria-label="Vista Kanban"
+              title="Vista Kanban"
+            >
+              <LayoutGrid size={14} />
+            </motion.button>
+          </div>
         </nav>
 
         {/* Action buttons */}
@@ -427,6 +558,24 @@ export default function DashboardPage() {
 
         {/* Right controls */}
         <nav className="flex items-center gap-2" aria-label="Controles adicionales">
+          <motion.button
+            onClick={() => { playClick(); setShowAnalytics(!showAnalytics); }}
+            className="w-11 h-11 flex items-center justify-center rounded-full"
+            style={{
+              background: showAnalytics
+                ? 'linear-gradient(180deg, #FF6B35 0%, #FF4500 100%)'
+                : 'linear-gradient(180deg, #4A4A4A 0%, #3A3A3A 100%)',
+              boxShadow: showAnalytics
+                ? '0 2px 0 #C23400, inset 0 1px 0 rgba(255,255,255,0.2)'
+                : '0 2px 0 #2A2A2A, inset 0 1px 0 rgba(255,255,255,0.1)',
+            }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95, y: 1 }}
+            aria-label="Mostrar analytics"
+          >
+            <BarChart3 size={16} className={showAnalytics ? 'text-white' : 'text-gray-400'} aria-hidden="true" />
+          </motion.button>
+
           <motion.button
             onClick={() => { playClick(); setIsHistoryOpen(true); }}
             className="w-11 h-11 flex items-center justify-center rounded-full"
@@ -457,6 +606,23 @@ export default function DashboardPage() {
         </nav>
       </div>
 
+      {/* Analytics Panel */}
+      <AnimatePresence>
+        {showAnalytics && !loading && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="px-4 mt-3 overflow-hidden"
+          >
+            <AnalyticsPanel
+              requests={requests}
+              teamMembers={teamMembers}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Search & Filter */}
       <div className="px-4 mt-3">
         <SearchFilter
@@ -469,186 +635,102 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <div className="p-4 space-y-6">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          {loading ? (
-            <>
-              <SectionSkeleton count={2} />
-              <SectionSkeleton count={3} />
-            </>
-          ) : (
-            <>
-              {/* Urgentes */}
-              <AnimatePresence mode="popLayout">
-                {urgent.length > 0 && (
-                  <motion.section
-                    key="urgent"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                  >
-                    <SectionHeader title="URGENTES" count={urgent.length} color="red" />
-                    <SortableContext items={urgent.map((r) => r.id)} strategy={verticalListSortingStrategy}>
-                      <motion.div
-                        variants={staggerContainerVariants}
-                        initial="initial"
-                        animate="animate"
-                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
-                      >
-                        {urgent.map((request) => (
-                          <motion.div key={request.id} variants={staggerItemVariants}>
-                            <PedidoPad
-                              request={request}
-                              onComplete={handleComplete}
-                              onEdit={handleEdit}
-                              onDelete={handleDelete}
-                              compact={settings.compactView}
-                              isDraggable
-                            />
-                          </motion.div>
-                        ))}
-                      </motion.div>
-                    </SortableContext>
-                  </motion.section>
-                )}
-              </AnimatePresence>
+        {viewMode === 'kanban' ? (
+          /* Kanban View */
+          <KanbanBoard
+            requests={filteredRequests}
+            onOpenDetail={handleOpenDetail}
+            onEdit={handleEdit}
+            onStatusChange={handleStatusChange}
+            teamMembers={teamMembers}
+            compact={settings.compactView}
+          />
+        ) : (
+          /* List View */
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            {loading ? (
+              <>
+                <SectionSkeleton count={2} />
+                <SectionSkeleton count={3} />
+              </>
+            ) : (
+              <>
+                <AnimatePresence mode="popLayout">
+                  {renderSection('URGENTES', urgent, 'red', 'urgent')}
+                  {renderSection('ESTA SEMANA', thisWeek, 'orange', 'thisWeek')}
+                  {renderSection('PROXIMOS', later, 'green', 'later')}
 
-              {/* Esta semana */}
-              <AnimatePresence mode="popLayout">
-                {thisWeek.length > 0 && (
-                  <motion.section
-                    key="thisWeek"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                  >
-                    <SectionHeader title="ESTA SEMANA" count={thisWeek.length} color="orange" />
-                    <SortableContext items={thisWeek.map((r) => r.id)} strategy={verticalListSortingStrategy}>
-                      <motion.div
-                        variants={staggerContainerVariants}
-                        initial="initial"
-                        animate="animate"
-                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
-                      >
-                        {thisWeek.map((request) => (
-                          <motion.div key={request.id} variants={staggerItemVariants}>
-                            <PedidoPad
-                              request={request}
-                              onComplete={handleComplete}
-                              onEdit={handleEdit}
-                              onDelete={handleDelete}
-                              compact={settings.compactView}
-                              isDraggable
-                            />
-                          </motion.div>
-                        ))}
-                      </motion.div>
-                    </SortableContext>
-                  </motion.section>
-                )}
-              </AnimatePresence>
-
-              {/* Proximos */}
-              <AnimatePresence mode="popLayout">
-                {later.length > 0 && (
-                  <motion.section
-                    key="later"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                  >
-                    <SectionHeader title="PROXIMOS" count={later.length} color="green" />
-                    <SortableContext items={later.map((r) => r.id)} strategy={verticalListSortingStrategy}>
-                      <motion.div
-                        variants={staggerContainerVariants}
-                        initial="initial"
-                        animate="animate"
-                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
-                      >
-                        {later.map((request) => (
-                          <motion.div key={request.id} variants={staggerItemVariants}>
-                            <PedidoPad
-                              request={request}
-                              onComplete={handleComplete}
-                              onEdit={handleEdit}
-                              onDelete={handleDelete}
-                              compact={settings.compactView}
-                              isDraggable
-                            />
-                          </motion.div>
-                        ))}
-                      </motion.div>
-                    </SortableContext>
-                  </motion.section>
-                )}
-              </AnimatePresence>
-
-              {/* Completados */}
-              <AnimatePresence mode="popLayout">
-                {completedRequests.length > 0 && (
-                  <motion.section
-                    key="completed"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <SectionHeader title="COMPLETADOS" count={completedRequests.length} color="cyan" />
-                      {hasMoreCompleted && (
-                        <motion.button
-                          onClick={() => { playClick(); setIsHistoryOpen(true); }}
-                          className="text-[10px] uppercase tracking-wide text-[#00E5FF] hover:text-white transition-colors flex items-center gap-1"
-                          whileHover={{ x: 3 }}
-                        >
-                          Ver todos ({completedRequests.length})
-                          <History size={10} />
-                        </motion.button>
-                      )}
-                    </div>
-                    <motion.div
-                      variants={staggerContainerVariants}
-                      initial="initial"
-                      animate="animate"
-                      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
+                  {/* Completados */}
+                  {completedRequests.length > 0 && (
+                    <motion.section
+                      key="completed"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
                     >
-                      {visibleCompleted.map((request) => (
-                        <motion.div key={request.id} variants={staggerItemVariants}>
-                          <PedidoPad request={request} compact={settings.compactView} />
-                        </motion.div>
-                      ))}
-                    </motion.div>
-                  </motion.section>
-                )}
-              </AnimatePresence>
-            </>
-          )}
+                      <div className="flex items-center justify-between mb-3">
+                        <SectionHeader title="COMPLETADOS" count={completedRequests.length} color="cyan" />
+                        {hasMoreCompleted && (
+                          <motion.button
+                            onClick={() => { playClick(); setIsHistoryOpen(true); }}
+                            className="text-[10px] uppercase tracking-wide text-[#00E5FF] hover:text-white transition-colors flex items-center gap-1"
+                            whileHover={{ x: 3 }}
+                          >
+                            Ver todos ({completedRequests.length})
+                            <History size={10} />
+                          </motion.button>
+                        )}
+                      </div>
+                      <motion.div
+                        variants={staggerContainerVariants}
+                        initial="initial"
+                        animate="animate"
+                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
+                      >
+                        {visibleCompleted.map((request) => (
+                          <motion.div key={request.id} variants={staggerItemVariants}>
+                            <PedidoPad
+                              request={request}
+                              compact={settings.compactView}
+                              onOpenDetail={handleOpenDetail}
+                            />
+                          </motion.div>
+                        ))}
+                      </motion.div>
+                    </motion.section>
+                  )}
+                </AnimatePresence>
+              </>
+            )}
 
-          {/* Empty state */}
-          {!loading && activeRequests.length === 0 && (
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="lcd-screen p-8 text-center" role="status" aria-live="polite">
-              <p className="lcd-number text-lg mb-2">NO DATA</p>
-              <p className="text-[#949494] text-xs mb-4">No hay pedidos activos</p>
-              <Button3D variant="orange" onClick={handleOpenNewModal} aria-label="Crear el primer pedido">CREAR PRIMER PEDIDO</Button3D>
-            </motion.div>
-          )}
+            {/* Empty state */}
+            {!loading && activeRequests.length === 0 && (
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="lcd-screen p-8 text-center" role="status" aria-live="polite">
+                <p className="lcd-number text-lg mb-2">NO DATA</p>
+                <p className="text-[#949494] text-xs mb-4">No hay pedidos activos</p>
+                <Button3D variant="orange" onClick={handleOpenNewModal} aria-label="Crear el primer pedido">CREAR PRIMER PEDIDO</Button3D>
+              </motion.div>
+            )}
 
-          {/* Search no results */}
-          {!loading && searchQuery && filteredRequests.length === 0 && activeRequests.length > 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="lcd-screen p-6 text-center" role="status" aria-live="polite">
-              <Search size={24} className="mx-auto mb-3 text-[#949494]" aria-hidden="true" />
-              <p className="text-sm text-[#B0B0B0] mb-1">No se encontraron resultados</p>
-              <p className="text-xs text-[#949494]">
-                Intenta con otra búsqueda o{' '}
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="text-[#00E5FF] hover:underline focus:outline-none focus:ring-2 focus:ring-[#FF4500] focus:ring-offset-2 focus:ring-offset-[#131313] rounded"
-                  aria-label="Limpiar filtro de búsqueda"
-                >
-                  limpia el filtro
-                </button>
-              </p>
-            </motion.div>
-          )}
-        </DndContext>
+            {/* Search no results */}
+            {!loading && searchQuery && filteredRequests.length === 0 && activeRequests.length > 0 && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="lcd-screen p-6 text-center" role="status" aria-live="polite">
+                <Search size={24} className="mx-auto mb-3 text-[#949494]" aria-hidden="true" />
+                <p className="text-sm text-[#B0B0B0] mb-1">No se encontraron resultados</p>
+                <p className="text-xs text-[#949494]">
+                  Intenta con otra búsqueda o{' '}
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="text-[#00E5FF] hover:underline focus:outline-none focus:ring-2 focus:ring-[#FF4500] focus:ring-offset-2 focus:ring-offset-[#131313] rounded"
+                    aria-label="Limpiar filtro de búsqueda"
+                  >
+                    limpia el filtro
+                  </button>
+                </p>
+              </motion.div>
+            )}
+          </DndContext>
+        )}
       </div>
       </main>
 
@@ -691,6 +773,18 @@ export default function DashboardPage() {
 
       <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
       <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
+
+      {/* Detail Panel */}
+      {detailRequest && (
+        <PedidoDetailPanel
+          request={detailRequest}
+          isOpen={!!detailRequest}
+          onClose={() => setDetailRequest(null)}
+          onStatusChange={handleStatusChange}
+          teamMembers={teamMembers}
+          currentUserId={teamMembers[0]?.id || null}
+        />
+      )}
     </DeviceFrame>
     </ErrorBoundary>
   );
