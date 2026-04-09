@@ -127,7 +127,7 @@ async function main() {
     let pendingQuery = supabase
       .from('requests')
       .select('*')
-      .in('status', ['pending', 'in_progress'])
+      .not('status', 'in', '("completed","cancelled")')
       .order('deadline', { ascending: true });
 
     if (TEAM_ID) {
