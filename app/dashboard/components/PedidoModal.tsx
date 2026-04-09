@@ -6,6 +6,7 @@ import { modalOverlayVariants, modalContentVariants, springs } from '@/lib/anima
 import { Request } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { calculatePriority } from '@/lib/utils';
+import { logActivity } from '@/lib/activityLog';
 import { X, Briefcase, FileText, User, Calendar, Send, Loader2 } from 'lucide-react';
 import Button3D from './controls/Button3D';
 import CalendarPicker from './controls/CalendarPicker';
@@ -152,7 +153,7 @@ export default function PedidoModal({
       if (editingRequest) {
         let updateQuery = supabase
           .from('requests')
-          .update(requestData)
+          .update({ ...requestData, updated_at: new Date().toISOString() })
           .eq('id', editingRequest.id);
 
         if (TEAM_ID) {
@@ -162,14 +163,44 @@ export default function PedidoModal({
         const { error } = await updateQuery;
 
         if (error) throw error;
+
+        // Log edit activity with field changes
+        const changes: Record<string, { old: string; new: string }> = {};
+        if (editingRequest.client !== requestData.client) changes.client = { old: editingRequest.client, new: requestData.client };
+        if (editingRequest.description !== requestData.description) changes.description = { old: editingRequest.description, new: requestData.description };
+        if (editingRequest.deadline !== requestData.deadline) changes.deadline = { old: editingRequest.deadline, new: requestData.deadline };
+        if (editingRequest.assigned_to !== requestData.assigned_to) changes.assigned = { old: editingRequest.assigned_to || '', new: requestData.assigned_to || '' };
+
+        if (Object.keys(changes).length > 0) {
+          await logActivity(editingRequest.id, users[0]?.id || null, 'edited', { field_changes: changes });
+        }
+        if (editingRequest.deadline !== requestData.deadline) {
+          await logActivity(editingRequest.id, users[0]?.id || null, 'deadline_changed', {
+            old_deadline: editingRequest.deadline,
+            new_deadline: requestData.deadline,
+          });
+        }
+        if (editingRequest.assigned_to !== requestData.assigned_to) {
+          const oldName = users.find(u => u.id === editingRequest.assigned_to)?.name || '';
+          const newName = users.find(u => u.id === requestData.assigned_to)?.name || '';
+          await logActivity(editingRequest.id, users[0]?.id || null, 'assigned', {
+            old_assigned: oldName,
+            new_assigned: newName,
+          });
+        }
       } else {
-        const { error } = await supabase.from('requests').insert({
+        const { data: insertedData, error } = await supabase.from('requests').insert({
           ...requestData,
           created_by: users[0]?.id || null,
           ...(TEAM_ID && { team_id: TEAM_ID }),
-        });
+        }).select('id').single();
 
         if (error) throw error;
+
+        // Log creation
+        if (insertedData) {
+          await logActivity(insertedData.id, users[0]?.id || null, 'created', {});
+        }
       }
 
       onSuccess();

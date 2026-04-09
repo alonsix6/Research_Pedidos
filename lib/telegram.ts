@@ -267,12 +267,14 @@ export function formatRequestsList(requests: Request[], title: string = 'Pedidos
  * Mensaje de ayuda con todos los comandos
  */
 export function getHelpMessage(): string {
-  return `🤖 *Bot de Pedidos*
+  return `🤖 *Bot de Pedidos v3.0*
 
 📝 *Comandos principales:*
 
 /nuevopedido - Crear un nuevo pedido
 /completar - Marcar pedido como completado
+/estado - Cambiar estado de un pedido
+/comentar - Agregar comentario a un pedido
 /ver - Ver todos los pedidos activos
 /mios - Ver mis pedidos asignados
 /menu - Abrir menú con botones
@@ -287,6 +289,10 @@ export function getHelpMessage(): string {
 
 /cancelar - Cancelar operación actual
 /ayuda - Ver este mensaje de ayuda
+
+📊 *Estados disponibles:*
+⏳ Pendiente → 🔵 En Progreso → 🟣 En Revisión → ✅ Completado
+🔴 Bloqueado | 🟠 Necesita Revisión
 
 ---
 💡 *Tip:* Usa los botones de abajo para acceder rápidamente a las opciones.

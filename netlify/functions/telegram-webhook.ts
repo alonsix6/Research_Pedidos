@@ -455,6 +455,14 @@ export const handler: Handler = async (event) => {
           await handleUrgenteCommand(chatId);
           break;
 
+        case '/estado':
+          await handleEstadoCommand(chatId, userId.toString());
+          break;
+
+        case '/comentar':
+          await handleComentarCommand(chatId, userId.toString());
+          break;
+
         default:
           await sendMessage(
             chatId,
@@ -688,6 +696,250 @@ async function handleConversationFlow(
         `✅ *Pedido completado!*\n\n${updatedRequest.client} - ${updatedRequest.description}\n\n🎉 ¡Buen trabajo!`
       );
       break;
+
+    case 'awaiting_status_selection': {
+      const statusSelData = state.data as CompleteRequestData;
+      const statusSelNum = parseInt(text, 10);
+      const statusReqIds = statusSelData.requestIds || [];
+
+      if (isNaN(statusSelNum) || statusSelNum < 1 || statusSelNum > statusReqIds.length) {
+        await sendMessage(chatId, `⚠️ Por favor responde con un número del 1 al ${statusReqIds.length}.`);
+        return;
+      }
+
+      const statusReqId = statusReqIds[statusSelNum - 1];
+      // Fetch the request to show current status
+      const { data: statusReq } = await getSupabase()
+        .from('requests')
+        .select('*')
+        .eq('id', statusReqId)
+        .single();
+
+      if (!statusReq) {
+        await sendMessage(chatId, '❌ Pedido no encontrado.');
+        await clearConversationState(chatId.toString(), userId, getSupabase());
+        return;
+      }
+
+      // Show available transitions
+      const transitions: Record<string, string[]> = {
+        pending: ['in_progress', 'cancelled'],
+        in_progress: ['in_review', 'blocked', 'cancelled'],
+        blocked: ['in_progress', 'cancelled'],
+        in_review: ['completed', 'needs_revision'],
+        needs_revision: ['in_progress', 'cancelled'],
+      };
+
+      const statusLabels: Record<string, string> = {
+        pending: '⏳ Pendiente',
+        in_progress: '🔵 En Progreso',
+        in_review: '🟣 En Revisión',
+        blocked: '🔴 Bloqueado',
+        needs_revision: '🟠 Necesita Revisión',
+        completed: '✅ Completado',
+        cancelled: '❌ Cancelado',
+      };
+
+      const nextStatuses = transitions[statusReq.status] || [];
+      if (nextStatuses.length === 0) {
+        await sendMessage(chatId, `Este pedido está en estado *${statusLabels[statusReq.status]}* y no puede cambiar de estado.`);
+        await clearConversationState(chatId.toString(), userId, getSupabase());
+        return;
+      }
+
+      let statusMsg = `📋 *${statusReq.client}* - ${statusReq.description}\n`;
+      statusMsg += `Estado actual: ${statusLabels[statusReq.status]}\n\n`;
+      statusMsg += `¿A qué estado deseas cambiar?\n\n`;
+      nextStatuses.forEach((s, i) => {
+        statusMsg += `${i + 1}️⃣ ${statusLabels[s]}\n`;
+      });
+      statusMsg += `\nResponde con el número o /cancelar`;
+
+      await saveConversationState({
+        chatId: chatId.toString(),
+        userId,
+        step: 'awaiting_status_change',
+        data: { requestIds: [statusReqId, ...nextStatuses] },
+      }, getSupabase());
+
+      await sendMessage(chatId, statusMsg);
+      break;
+    }
+
+    case 'awaiting_status_change': {
+      const statusChangeData = state.data as CompleteRequestData;
+      const changeNum = parseInt(text, 10);
+      const changeReqIds = statusChangeData.requestIds || [];
+      const changeReqId = changeReqIds[0];
+      const availableStatuses = changeReqIds.slice(1);
+
+      if (isNaN(changeNum) || changeNum < 1 || changeNum > availableStatuses.length) {
+        await sendMessage(chatId, `⚠️ Por favor responde con un número del 1 al ${availableStatuses.length}.`);
+        return;
+      }
+
+      const newStatus = availableStatuses[changeNum - 1];
+
+      // If blocked, ask for reason
+      if (newStatus === 'blocked') {
+        await saveConversationState({
+          chatId: chatId.toString(),
+          userId,
+          step: 'awaiting_blocked_reason',
+          data: { requestIds: [changeReqId] },
+        }, getSupabase());
+        await sendMessage(chatId, '🔴 *Motivo del bloqueo:*\n\nEscribe por qué se bloquea este pedido:');
+        return;
+      }
+
+      // Apply the status change
+      const updateFields: Record<string, unknown> = {
+        status: newStatus,
+        status_changed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      if (newStatus === 'completed') updateFields.completed_at = new Date().toISOString();
+
+      const { error: changeErr } = await getSupabase()
+        .from('requests')
+        .update(updateFields)
+        .eq('id', changeReqId);
+
+      if (changeErr) {
+        await sendMessage(chatId, '❌ Error al cambiar estado.');
+      } else {
+        const statusLabelsInline: Record<string, string> = {
+          pending: '⏳ Pendiente', in_progress: '🔵 En Progreso', in_review: '🟣 En Revisión',
+          blocked: '🔴 Bloqueado', needs_revision: '🟠 Necesita Revisión',
+          completed: '✅ Completado', cancelled: '❌ Cancelado',
+        };
+        await sendMessage(chatId, `✅ Estado cambiado a *${statusLabelsInline[newStatus]}*`);
+
+        // Log activity
+        await getSupabase().from('activity_log').insert({
+          request_id: changeReqId,
+          action: 'status_changed',
+          details: { to_status: newStatus },
+          ...(TEAM_ID && { team_id: TEAM_ID }),
+        });
+      }
+
+      await clearConversationState(chatId.toString(), userId, getSupabase());
+      break;
+    }
+
+    case 'awaiting_blocked_reason': {
+      const blockedData = state.data as CompleteRequestData;
+      const blockedReqId = (blockedData.requestIds || [])[0];
+
+      if (!text.trim()) {
+        await sendMessage(chatId, '⚠️ Debes escribir un motivo para el bloqueo.');
+        return;
+      }
+
+      // Get current request to save original deadline
+      const { data: blockedReq } = await getSupabase()
+        .from('requests')
+        .select('deadline, original_deadline')
+        .eq('id', blockedReqId)
+        .single();
+
+      const { error: blockErr } = await getSupabase()
+        .from('requests')
+        .update({
+          status: 'blocked',
+          blocked_reason: text.trim(),
+          blocked_at: new Date().toISOString(),
+          original_deadline: blockedReq?.original_deadline || blockedReq?.deadline,
+          status_changed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', blockedReqId);
+
+      if (blockErr) {
+        await sendMessage(chatId, '❌ Error al bloquear el pedido.');
+      } else {
+        await sendMessage(chatId, `🔴 *Pedido bloqueado*\n\nMotivo: ${text.trim()}\n\n⏰ El deadline se extenderá automáticamente mientras esté bloqueado.`);
+
+        await getSupabase().from('activity_log').insert({
+          request_id: blockedReqId,
+          action: 'blocked',
+          details: { blocked_reason: text.trim() },
+          ...(TEAM_ID && { team_id: TEAM_ID }),
+        });
+      }
+
+      await clearConversationState(chatId.toString(), userId, getSupabase());
+      break;
+    }
+
+    case 'awaiting_comment_selection': {
+      const commentSelData = state.data as CompleteRequestData;
+      const commentSelNum = parseInt(text, 10);
+      const commentReqIds = commentSelData.requestIds || [];
+
+      if (isNaN(commentSelNum) || commentSelNum < 1 || commentSelNum > commentReqIds.length) {
+        await sendMessage(chatId, `⚠️ Por favor responde con un número del 1 al ${commentReqIds.length}.`);
+        return;
+      }
+
+      const commentReqId = commentReqIds[commentSelNum - 1];
+
+      await saveConversationState({
+        chatId: chatId.toString(),
+        userId,
+        step: 'awaiting_comment_text',
+        data: { requestIds: [commentReqId] },
+      }, getSupabase());
+
+      await sendMessage(chatId, '💬 Escribe tu comentario:');
+      break;
+    }
+
+    case 'awaiting_comment_text': {
+      const commentTextData = state.data as CompleteRequestData;
+      const commentTargetId = (commentTextData.requestIds || [])[0];
+
+      if (!text.trim()) {
+        await sendMessage(chatId, '⚠️ El comentario no puede estar vacío.');
+        return;
+      }
+
+      // Find the user's DB ID
+      const { data: commentUser } = await getSupabase()
+        .from('users')
+        .select('id')
+        .eq('telegram_id', userId)
+        .single();
+
+      // Insert comment
+      const { error: commentErr } = await getSupabase()
+        .from('comments')
+        .insert({
+          request_id: commentTargetId,
+          user_id: commentUser?.id || null,
+          content: text.trim(),
+          ...(TEAM_ID && { team_id: TEAM_ID }),
+        });
+
+      if (commentErr) {
+        await sendMessage(chatId, '❌ Error al agregar comentario.');
+      } else {
+        await sendMessage(chatId, '💬 *Comentario agregado!*\n\nSe puede ver en el dashboard.');
+
+        // Log activity
+        await getSupabase().from('activity_log').insert({
+          request_id: commentTargetId,
+          user_id: commentUser?.id || null,
+          action: 'commented',
+          details: { comment: text.trim() },
+          ...(TEAM_ID && { team_id: TEAM_ID }),
+        });
+      }
+
+      await clearConversationState(chatId.toString(), userId, getSupabase());
+      break;
+    }
   }
 }
 
@@ -698,7 +950,7 @@ async function handleCompletarCommand(chatId: number, userId: string) {
   let completarQuery = getSupabase()
     .from('requests')
     .select('*')
-    .in('status', ['pending', 'in_progress'])
+    .not('status', 'in', '("completed","cancelled")')
     .order('deadline', { ascending: true })
     .limit(10);
 
@@ -1063,10 +1315,161 @@ async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery) {
         createMainMenuButtons()
       );
     }
+    else if (data?.startsWith('status_')) {
+      // Handle status change callback from inline buttons
+      const parts = data.split('_');
+      const newStatus = parts.slice(1, -1).join('_'); // e.g., 'in_progress', 'blocked'
+      const reqId = parts[parts.length - 1]; // UUID at the end
+
+      if (newStatus === 'blocked') {
+        // Need to ask for reason via conversation
+        const fromUser = callbackQuery.from;
+        await saveConversationState({
+          chatId: chatId.toString(),
+          userId: fromUser.id.toString(),
+          step: 'awaiting_blocked_reason',
+          data: { requestIds: [reqId] },
+        }, getSupabase());
+        await answerCallbackQuery(callbackQuery.id, 'Escribe el motivo del bloqueo');
+        await sendMessage(chatId, '🔴 *Motivo del bloqueo:*\n\nEscribe por qué se bloquea este pedido:');
+      } else {
+        const updateFields: Record<string, unknown> = {
+          status: newStatus,
+          status_changed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        if (newStatus === 'completed') updateFields.completed_at = new Date().toISOString();
+        if (newStatus !== 'blocked') {
+          updateFields.blocked_reason = null;
+          updateFields.blocked_at = null;
+        }
+
+        const { error: statusErr } = await getSupabase()
+          .from('requests')
+          .update(updateFields)
+          .eq('id', reqId);
+
+        if (statusErr) {
+          await answerCallbackQuery(callbackQuery.id, '❌ Error', true);
+        } else {
+          const statusLabelsMap: Record<string, string> = {
+            pending: '⏳ Pendiente', in_progress: '🔵 En Progreso', in_review: '🟣 En Revisión',
+            blocked: '🔴 Bloqueado', needs_revision: '🟠 Necesita Revisión',
+            completed: '✅ Completado', cancelled: '❌ Cancelado',
+          };
+          await answerCallbackQuery(callbackQuery.id, `Cambiado a ${statusLabelsMap[newStatus] || newStatus}`);
+
+          if (messageId) {
+            await editMessageText(chatId, messageId, `✅ Estado cambiado a *${statusLabelsMap[newStatus] || newStatus}*`);
+          }
+
+          await getSupabase().from('activity_log').insert({
+            request_id: reqId,
+            action: 'status_changed',
+            details: { to_status: newStatus },
+            ...(TEAM_ID && { team_id: TEAM_ID }),
+          });
+        }
+      }
+    }
     else {
       await answerCallbackQuery(callbackQuery.id, 'Acción no reconocida');
     }
   } catch (error) {
     await answerCallbackQuery(callbackQuery.id, '❌ Error', true);
   }
+}
+
+/**
+ * Comando /estado - Cambiar estado de un pedido
+ */
+async function handleEstadoCommand(chatId: number, userId: string) {
+  let query = getSupabase()
+    .from('requests')
+    .select('*')
+    .not('status', 'in', '("completed","cancelled")')
+    .order('deadline', { ascending: true })
+    .limit(10);
+
+  if (TEAM_ID) {
+    query = query.eq('team_id', TEAM_ID);
+  }
+
+  const { data: requests, error } = await query;
+
+  if (error) {
+    await sendMessage(chatId, '❌ Error al obtener los pedidos.');
+    return;
+  }
+
+  if (!requests || requests.length === 0) {
+    await sendMessage(chatId, '📭 No hay pedidos activos.');
+    return;
+  }
+
+  const statusLabels: Record<string, string> = {
+    pending: '⏳', in_progress: '🔵', in_review: '🟣',
+    blocked: '🔴', needs_revision: '🟠',
+  };
+
+  let msg = '📋 *Cambiar estado de pedido*\n\nSelecciona el pedido:\n\n';
+  requests.forEach((req: Request, i: number) => {
+    const emoji = statusLabels[req.status] || '❓';
+    msg += `${i + 1}. ${emoji} *${req.client}* - ${req.description.slice(0, 40)}${req.description.length > 40 ? '...' : ''}\n`;
+  });
+  msg += '\nResponde con el número o /cancelar';
+
+  const requestIds = requests.map((req: Request) => req.id);
+  await saveConversationState({
+    chatId: chatId.toString(),
+    userId,
+    step: 'awaiting_status_selection',
+    data: { requestIds },
+  }, getSupabase());
+
+  await sendMessage(chatId, msg);
+}
+
+/**
+ * Comando /comentar - Agregar comentario a un pedido
+ */
+async function handleComentarCommand(chatId: number, userId: string) {
+  let query = getSupabase()
+    .from('requests')
+    .select('*')
+    .not('status', 'in', '("completed","cancelled")')
+    .order('deadline', { ascending: true })
+    .limit(10);
+
+  if (TEAM_ID) {
+    query = query.eq('team_id', TEAM_ID);
+  }
+
+  const { data: requests, error } = await query;
+
+  if (error) {
+    await sendMessage(chatId, '❌ Error al obtener los pedidos.');
+    return;
+  }
+
+  if (!requests || requests.length === 0) {
+    await sendMessage(chatId, '📭 No hay pedidos activos.');
+    return;
+  }
+
+  let msg = '💬 *Agregar comentario*\n\nSelecciona el pedido:\n\n';
+  requests.forEach((req: Request, i: number) => {
+    msg += `${i + 1}. *${req.client}* - ${req.description.slice(0, 40)}${req.description.length > 40 ? '...' : ''}\n`;
+  });
+  msg += '\nResponde con el número o /cancelar';
+
+  const requestIds = requests.map((req: Request) => req.id);
+  await saveConversationState({
+    chatId: chatId.toString(),
+    userId,
+    step: 'awaiting_comment_selection',
+    data: { requestIds },
+  }, getSupabase());
+
+  await sendMessage(chatId, msg);
 }

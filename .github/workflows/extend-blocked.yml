@@ -1,0 +1,27 @@
+name: Extend Blocked Deadlines
+
+on:
+  schedule:
+    # Runs daily at 15:00 UTC (10:00 AM Lima)
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+
+jobs:
+  extend-deadlines:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Extend blocked deadlines
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+        run: node scripts/extend-blocked-deadlines.js

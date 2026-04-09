@@ -108,10 +108,26 @@ export function getPriorityEmoji(priority: string): string {
 export function getStatusEmoji(status: string): string {
   switch (status) {
     case 'pending': return '⏳';
-    case 'in_progress': return '🔄';
+    case 'in_progress': return '🔵';
+    case 'in_review': return '🟣';
+    case 'blocked': return '🔴';
+    case 'needs_revision': return '🟠';
     case 'completed': return '✅';
     case 'cancelled': return '❌';
     default: return '❓';
+  }
+}
+
+export function getStatusLabel(status: string): string {
+  switch (status) {
+    case 'pending': return 'Pendiente';
+    case 'in_progress': return 'En Progreso';
+    case 'in_review': return 'En Revisión';
+    case 'blocked': return 'Bloqueado';
+    case 'needs_revision': return 'Necesita Revisión';
+    case 'completed': return 'Completado';
+    case 'cancelled': return 'Cancelado';
+    default: return status;
   }
 }
 

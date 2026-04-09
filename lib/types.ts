@@ -2,7 +2,7 @@
 
 export type UserRole = 'analyst' | 'assistant' | 'coordinator' | 'practicante';
 
-export type RequestStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+export type RequestStatus = 'pending' | 'in_progress' | 'in_review' | 'blocked' | 'needs_revision' | 'completed' | 'cancelled';
 
 export type RequestPriority = 'low' | 'normal' | 'high' | 'urgent';
 
@@ -34,6 +34,11 @@ export interface Request {
   status: RequestStatus;
   priority: RequestPriority;
   completion_notes: string | null;
+  blocked_reason: string | null;
+  blocked_at: string | null;
+  original_deadline: string | null;
+  status_changed_at: string | null;
+  status_changed_by: string | null;
   created_at: string;
   completed_at: string | null;
   created_by: string;
@@ -49,6 +54,16 @@ export interface ActivityLog {
   details: Record<string, unknown>;
   created_at: string;
   team_id: string | null;
+}
+
+export interface Comment {
+  id: string;
+  request_id: string;
+  user_id: string | null;
+  content: string;
+  created_at: string;
+  team_id: string | null;
+  user?: User;
 }
 
 export interface ConversationState {
@@ -99,7 +114,12 @@ export type ConversationStep =
   | 'awaiting_requester'
   | 'awaiting_deadline'
   | 'awaiting_assigned'
-  | 'awaiting_complete_selection';
+  | 'awaiting_complete_selection'
+  | 'awaiting_status_selection'
+  | 'awaiting_status_change'
+  | 'awaiting_blocked_reason'
+  | 'awaiting_comment_selection'
+  | 'awaiting_comment_text';
 
 export interface NewRequestData {
   client?: string;
