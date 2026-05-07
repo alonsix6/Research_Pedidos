@@ -40,3 +40,7 @@ next-env.d.ts
 .netlify
 netlify/functions/**/*.js
 !netlify/functions/telegram-webhook.js
+
+# supabase CLI working dir
+supabase/.temp/
+supabase/.branches/
