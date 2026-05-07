@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useCallback, useMemo, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
+import dynamic from 'next/dynamic';
 import { Request, RequestStatus } from '@/lib/types';
 import { classifyByUrgency } from '@/lib/utils';
-import { logActivity } from '@/lib/activityLog';
 import { canTransition } from '@/lib/statusMachine';
+import { completeRequest, deleteRequest } from '@/lib/services/requests';
 import { motion, AnimatePresence } from 'framer-motion';
 import { staggerContainerVariants, staggerItemVariants } from '@/lib/animations';
 import {
@@ -68,9 +68,12 @@ import SettingsDropdown from './components/SettingsDropdown';
 import { StatsSkeleton, SectionSkeleton } from './components/LoadingSkeleton';
 import PedidoDetailPanel from './components/PedidoDetailPanel';
 import KanbanBoard from './components/KanbanBoard';
-import AnalyticsPanel from './components/AnalyticsPanel';
-
-import { getRequiredTeamId } from '@/lib/teamId';
+// AnalyticsPanel se carga lazy: arrastra recharts (~180KB gzip) y solo se ve
+// cuando el usuario abre la sección. Sale del bundle inicial.
+const AnalyticsPanel = dynamic(() => import('./components/AnalyticsPanel'), {
+  ssr: false,
+  loading: () => null,
+});
 
 const MAX_VISIBLE_COMPLETED = 3;
 
@@ -102,8 +105,10 @@ export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [showAnalytics, setShowAnalytics] = useState(false);
 
-  // Detail Panel
-  const [detailRequest, setDetailRequest] = useState<Request | null>(null);
+  // Detail Panel: guardamos solo el id para que el request mostrado sea siempre
+  // la versión actual del array (que se actualiza vía realtime). Antes era un
+  // snapshot que podía quedar viejo si otro user editaba mientras lo tenías abierto.
+  const [detailRequestId, setDetailRequestId] = useState<string | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -189,99 +194,90 @@ export default function DashboardPage() {
     }),
   });
 
-  async function handleComplete(id: string) {
-    const request = requests.find((r) => r.id === id);
-    if (!request) return;
+  const handleComplete = useCallback(
+    async (id: string) => {
+      const request = requests.find((r) => r.id === id);
+      if (!request) return;
 
-    // Optimistic update
-    optimisticUpdate(id, {
-      status: 'completed',
-      completed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
-
-    try {
-      const { error } = await supabase
-        .from('requests')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          status_changed_at: new Date().toISOString(),
-        })
-        .eq('id', id)
-        .eq('team_id', getRequiredTeamId());
-      if (error) throw error;
-
-      // Log activity
-      await logActivity(id, null, 'completed', {
-        from_status: request.status,
-        to_status: 'completed',
+      // Optimistic update
+      const now = new Date().toISOString();
+      optimisticUpdate(id, {
+        status: 'completed',
+        completed_at: now,
+        updated_at: now,
       });
 
+      try {
+        await completeRequest(id, request.status);
+        playSuccess();
+        showToast('success', 'Completado!', 'El pedido ha sido marcado como completado');
+      } catch (err) {
+        console.error('Error completing request:', err);
+        optimisticUpdate(id, { status: request.status, completed_at: null });
+        showToast('error', 'Error', 'No se pudo completar el pedido');
+      }
+    },
+    [requests, optimisticUpdate, playSuccess, showToast]
+  );
+
+  const handleEdit = useCallback(
+    (request: Request) => {
+      playClick();
+      setEditingRequest(request);
+      setIsModalOpen(true);
+    },
+    [playClick]
+  );
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      if (!confirm('Seguro que deseas eliminar este pedido?')) return;
+
+      optimisticDelete(id);
+
+      try {
+        await deleteRequest(id);
+        showToast('info', 'Eliminado', 'El pedido ha sido eliminado');
+      } catch (err) {
+        console.error('Error deleting request:', err);
+        refresh();
+        showToast('error', 'Error', 'No se pudo eliminar el pedido');
+      }
+    },
+    [optimisticDelete, refresh, showToast]
+  );
+
+  const handleOpenDetail = useCallback(
+    (request: Request) => {
+      playClick();
+      setDetailRequestId(request.id);
+    },
+    [playClick]
+  );
+
+  const handleCloseDetail = useCallback(() => {
+    setDetailRequestId(null);
+  }, []);
+
+  const handleStatusChange = useCallback(
+    (id: string, newStatus: RequestStatus) => {
+      const now = new Date().toISOString();
+      optimisticUpdate(id, {
+        status: newStatus,
+        updated_at: now,
+        status_changed_at: now,
+        ...(newStatus === 'completed' && { completed_at: now }),
+      });
+
+      // Ya no parchamos detailRequest manualmente: como ahora el panel se
+      // deriva de `requests.find(r => r.id === detailRequestId)`, el cambio
+      // del array por la propia optimisticUpdate refresca el panel solo.
+
       playSuccess();
-      showToast('success', 'Completado!', 'El pedido ha sido marcado como completado');
-    } catch (err) {
-      console.error('Error completing request:', err);
-      // Revert optimistic update
-      optimisticUpdate(id, { status: request.status, completed_at: null });
-      showToast('error', 'Error', 'No se pudo completar el pedido');
-    }
-  }
-
-  function handleEdit(request: Request) {
-    playClick();
-    setEditingRequest(request);
-    setIsModalOpen(true);
-  }
-
-  async function handleDelete(id: string) {
-    if (!confirm('Seguro que deseas eliminar este pedido?')) return;
-
-    const request = requests.find((r) => r.id === id);
-    // Optimistic delete
-    optimisticDelete(id);
-
-    try {
-      const { error } = await supabase
-        .from('requests')
-        .delete()
-        .eq('id', id)
-        .eq('team_id', getRequiredTeamId());
-      if (error) throw error;
-      showToast('info', 'Eliminado', 'El pedido ha sido eliminado');
-    } catch (err) {
-      console.error('Error deleting request:', err);
-      // Revert - refresh to get original state
-      refresh();
-      showToast('error', 'Error', 'No se pudo eliminar el pedido');
-    }
-  }
-
-  function handleOpenDetail(request: Request) {
-    playClick();
-    setDetailRequest(request);
-  }
-
-  function handleStatusChange(id: string, newStatus: RequestStatus) {
-    // Optimistic update
-    optimisticUpdate(id, {
-      status: newStatus,
-      updated_at: new Date().toISOString(),
-      status_changed_at: new Date().toISOString(),
-      ...(newStatus === 'completed' && { completed_at: new Date().toISOString() }),
-    });
-
-    // Update the detail panel's request if it's open
-    if (detailRequest?.id === id) {
-      setDetailRequest((prev) =>
-        prev ? { ...prev, status: newStatus, updated_at: new Date().toISOString() } : null
-      );
-    }
-
-    playSuccess();
-    showToast('success', 'Estado actualizado', `Cambiado a ${newStatus}`);
-  }
+      showToast('success', 'Estado actualizado', `Cambiado a ${newStatus}`);
+    },
+    [optimisticUpdate, playSuccess, showToast]
+  );
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -860,17 +856,24 @@ export default function DashboardPage() {
         <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
         <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
 
-        {/* Detail Panel */}
-        {detailRequest && (
-          <PedidoDetailPanel
-            request={detailRequest}
-            isOpen={!!detailRequest}
-            onClose={() => setDetailRequest(null)}
-            onStatusChange={handleStatusChange}
-            teamMembers={teamMembers}
-            currentUserId={teamMembers[0]?.id || null}
-          />
-        )}
+        {/* Detail Panel: el request mostrado se deriva del array `requests`,
+            así que cuando llega un evento realtime de update sobre ese id,
+            el panel se actualiza solo (no queda con un snapshot viejo). */}
+        {detailRequestId &&
+          (() => {
+            const detailRequest = requests.find((r) => r.id === detailRequestId);
+            if (!detailRequest) return null;
+            return (
+              <PedidoDetailPanel
+                request={detailRequest}
+                isOpen={true}
+                onClose={handleCloseDetail}
+                onStatusChange={handleStatusChange}
+                teamMembers={teamMembers}
+                currentUserId={teamMembers[0]?.id || null}
+              />
+            );
+          })()}
       </DeviceFrame>
     </ErrorBoundary>
   );

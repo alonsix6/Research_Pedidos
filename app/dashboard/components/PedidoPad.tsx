@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { Request } from '@/lib/types';
 import { formatLimaDate, formatDaysLeft } from '@/lib/utils';
 import {
@@ -33,7 +33,7 @@ interface PedidoPadProps {
 // Threshold for auto-truncating long descriptions
 const DESCRIPTION_TRUNCATE_LENGTH = 100;
 
-export default function PedidoPad({
+function PedidoPadInner({
   request,
   onComplete,
   onEdit,
@@ -285,6 +285,11 @@ export default function PedidoPad({
     </motion.article>
   );
 }
+
+// memo: solo re-render si cambian props. Crítico cuando llega un evento
+// realtime: si solo cambió un request, los demás cards no necesitan re-render.
+const PedidoPad = memo(PedidoPadInner);
+export default PedidoPad;
 
 function ActionButton({
   onClick,
