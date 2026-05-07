@@ -9,6 +9,7 @@ import { calculatePriority } from '@/lib/utils';
 import { logActivity } from '@/lib/activityLog';
 import { getRequiredTeamId } from '@/lib/teamId';
 import { useStaleNotice } from '@/lib/hooks/useStaleNotice';
+import { ConflictError, updateRequestWithConflictCheck } from '@/lib/services/requests';
 import { AlertTriangle, X, Briefcase, FileText, User, Calendar, Send, Loader2 } from 'lucide-react';
 import Button3D from './controls/Button3D';
 import CalendarPicker from './controls/CalendarPicker';
@@ -179,27 +180,27 @@ export default function PedidoModal({
       };
 
       if (editingRequest) {
-        // Conflict-detected update: solo aplica si nadie tocó el row desde
-        // que el modal lo abrió. `.select().single()` con `.eq('updated_at',
-        // snapshot)` retorna 0 filas (PGRST116) si otro user pisó.
-        const { data, error } = await supabase
-          .from('requests')
-          .update({ ...requestData, updated_at: new Date().toISOString() })
-          .eq('id', editingRequest.id)
-          .eq('team_id', getRequiredTeamId())
-          .eq('updated_at', snapshotUpdatedAt ?? editingRequest.updated_at)
-          .select()
-          .single();
-
-        if ((error as { code?: string } | null)?.code === 'PGRST116' || (!error && !data)) {
-          setErrors({
-            submit:
-              'Otro usuario editó este pedido mientras lo tenías abierto. Usa "Ver cambios" arriba para recargar y reintentar.',
-          });
-          setLoading(false);
-          return;
+        // Conflict-detected update centralizado en lib/services/requests.ts.
+        // Si otro user tocó la fila entre el open del modal y este save,
+        // updateRequestWithConflictCheck lanza ConflictError y le mostramos
+        // un mensaje inline en lugar de pisar silencioso.
+        try {
+          await updateRequestWithConflictCheck(
+            editingRequest.id,
+            snapshotUpdatedAt ?? editingRequest.updated_at,
+            requestData
+          );
+        } catch (err) {
+          if (err instanceof ConflictError) {
+            setErrors({
+              submit:
+                'Otro usuario editó este pedido mientras lo tenías abierto. Usa "Ver cambios" arriba para recargar y reintentar.',
+            });
+            setLoading(false);
+            return;
+          }
+          throw err;
         }
-        if (error) throw error;
 
         // Log edit activity with field changes
         const changes: Record<string, { old: string; new: string }> = {};
@@ -348,6 +349,7 @@ export default function PedidoModal({
                       <button
                         type="button"
                         onClick={applyLatestVersion}
+                        title="Pisa el formulario con la versión actualizada (perderás cambios locales sin guardar)"
                         className="rounded-md bg-amber-500/30 px-2 py-1 text-xs font-medium hover:bg-amber-500/40"
                       >
                         Ver cambios

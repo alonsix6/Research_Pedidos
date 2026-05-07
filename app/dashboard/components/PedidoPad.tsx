@@ -63,16 +63,25 @@ function PedidoPadInner({
     disabled: !isDraggable || isCompleted,
   });
 
+  // Pulse + drag shadows combinados. boxShadow inline pisa la clase Tailwind
+  // shadow-2xl, así que cuando hay drag además de pulse los componemos.
+  const PULSE_SHADOW = '0 0 0 2px rgba(34, 211, 238, 0.55), 0 0 18px rgba(34, 211, 238, 0.35)';
+  const DRAG_SHADOW = '0 25px 50px -12px rgba(0, 0, 0, 0.6)';
+  const composedShadow =
+    pulse && isDragging
+      ? `${PULSE_SHADOW}, ${DRAG_SHADOW}`
+      : pulse
+        ? PULSE_SHADOW
+        : isDragging
+          ? DRAG_SHADOW
+          : undefined;
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 50 : 'auto',
-    // Pulse: glow cyan suave por ~600ms cuando llega un cambio realtime.
-    // Usamos boxShadow inline para no chocar con drag/hover variants.
-    boxShadow: pulse
-      ? '0 0 0 2px rgba(34, 211, 238, 0.55), 0 0 18px rgba(34, 211, 238, 0.35)'
-      : undefined,
+    boxShadow: composedShadow,
     transitionProperty: 'box-shadow',
     transitionDuration: '350ms',
   } as CSSProperties;

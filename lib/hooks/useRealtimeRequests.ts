@@ -40,9 +40,11 @@ export function useRealtimeRequests(
   const [isConnected, setIsConnected] = useState(false);
   const [recentlyUpdatedIds, setRecentlyUpdatedIds] = useState<Set<string>>(new Set());
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const pulseTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   // Marca un id como "recién actualizado" durante PULSE_TTL_MS para que las
-  // cards puedan animarse. Después se limpia automáticamente.
+  // cards puedan animarse. Si llega un segundo evento para el mismo id antes
+  // del TTL, reinicia el timer (no acumula timers).
   const markPulse = useCallback((id: string) => {
     setRecentlyUpdatedIds((prev) => {
       if (prev.has(id)) return prev;
@@ -50,7 +52,10 @@ export function useRealtimeRequests(
       next.add(id);
       return next;
     });
-    setTimeout(() => {
+    const existing = pulseTimersRef.current.get(id);
+    if (existing) clearTimeout(existing);
+    const t = setTimeout(() => {
+      pulseTimersRef.current.delete(id);
       setRecentlyUpdatedIds((prev) => {
         if (!prev.has(id)) return prev;
         const next = new Set(prev);
@@ -58,6 +63,17 @@ export function useRealtimeRequests(
         return next;
       });
     }, PULSE_TTL_MS);
+    pulseTimersRef.current.set(id, t);
+  }, []);
+
+  // Cleanup global de timers al desmontar el hook (evita updates de state
+  // sobre componentes ya desmontados).
+  useEffect(() => {
+    const timers = pulseTimersRef.current;
+    return () => {
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+    };
   }, []);
 
   // Store callbacks in ref to avoid re-subscribing on every render
