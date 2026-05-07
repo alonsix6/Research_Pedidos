@@ -9,9 +9,8 @@ import {
   requiresBlockedReason,
 } from '@/lib/statusMachine';
 import { formatLimaDate, formatDaysLeft } from '@/lib/utils';
-import { supabase } from '@/lib/supabase';
 import { logActivity } from '@/lib/activityLog';
-import { getRequiredTeamId } from '@/lib/teamId';
+import { ConflictError, updateRequestWithConflictCheck } from '@/lib/services/requests';
 import { motion, AnimatePresence } from 'framer-motion';
 import { modalOverlayVariants, springs } from '@/lib/animations';
 import { X, Clock, User, Calendar, FileText, AlertTriangle, ChevronRight } from 'lucide-react';
@@ -40,6 +39,7 @@ export default function PedidoDetailPanel({
   const [blockedReason, setBlockedReason] = useState('');
   const [showBlockedInput, setShowBlockedInput] = useState(false);
   const [activeTab, setActiveTab] = useState<'timeline' | 'comments'>('timeline');
+  const [conflictMessage, setConflictMessage] = useState<string | null>(null);
 
   const nextStatuses = getNextStatuses(request.status);
   const assignedName = teamMembers.find((m) => m.id === request.assigned_to)?.name || 'Sin asignar';
@@ -60,40 +60,43 @@ export default function PedidoDetailPanel({
 
   async function performStatusChange(newStatus: RequestStatus, reason?: string) {
     setChangingStatus(true);
+    setConflictMessage(null);
     try {
-      const updateData: Record<string, unknown> = {
+      const patch: Partial<Request> = {
         status: newStatus,
         status_changed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       };
 
-      // Handle blocked logic
       if (newStatus === 'blocked') {
-        updateData.blocked_reason = reason || '';
-        updateData.blocked_at = new Date().toISOString();
-        updateData.original_deadline = request.original_deadline || request.deadline;
+        patch.blocked_reason = reason || '';
+        patch.blocked_at = new Date().toISOString();
+        patch.original_deadline = request.original_deadline || request.deadline;
       }
 
-      // Handle unblocking - clear blocked fields
       if (request.status === 'blocked' && newStatus !== 'blocked') {
-        updateData.blocked_reason = null;
-        updateData.blocked_at = null;
-        // Keep the extended deadline (don't revert)
+        patch.blocked_reason = null;
+        patch.blocked_at = null;
       }
 
-      // Handle completion
       if (newStatus === 'completed') {
-        updateData.completed_at = new Date().toISOString();
+        patch.completed_at = new Date().toISOString();
       }
 
-      const { error } = await supabase
-        .from('requests')
-        .update(updateData)
-        .eq('id', request.id)
-        .eq('team_id', getRequiredTeamId());
-      if (error) throw error;
+      // Conflict-checked update: si otro user cambió el estado en paralelo,
+      // ConflictError → mensaje inline + el panel se va a sincronizar solo
+      // por realtime (request prop ya viene del array fresco, F4).
+      try {
+        await updateRequestWithConflictCheck(request.id, request.updated_at, patch);
+      } catch (err) {
+        if (err instanceof ConflictError) {
+          setConflictMessage(
+            'Otro usuario cambió el estado de este pedido. La pantalla se actualizó; intenta de nuevo si todavía aplica.'
+          );
+          return;
+        }
+        throw err;
+      }
 
-      // Log the activity
       const action =
         newStatus === 'blocked'
           ? 'blocked'
@@ -282,6 +285,25 @@ export default function PedidoDetailPanel({
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* Conflict notice (otro user pisó el cambio) */}
+              {conflictMessage && (
+                <div
+                  role="alert"
+                  className="mt-2 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-100"
+                >
+                  <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-400" />
+                  <span className="flex-1">{conflictMessage}</span>
+                  <button
+                    type="button"
+                    onClick={() => setConflictMessage(null)}
+                    className="opacity-70 hover:opacity-100"
+                    aria-label="Cerrar aviso"
+                  >
+                    <X size={12} />
+                  </button>
                 </div>
               )}
 

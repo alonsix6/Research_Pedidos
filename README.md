@@ -101,7 +101,7 @@ Cada tabla principal tiene una columna `team_id` (UUID). Cada deploy (dashboard 
 | `lib/telegram.ts`                           | Helpers del bot                                            |
 | `scripts/daily-reminder.js`                 | Recordatorio diario filtrado por equipo                    |
 
-> **Nota:** Si `TEAM_ID` / `NEXT_PUBLIC_TEAM_ID` no están definidos, el sistema funciona sin filtro (modo legacy, muestra todo).
+> **Nota:** `TEAM_ID` (server) y `NEXT_PUBLIC_TEAM_ID` (cliente) son **obligatorios**. Si faltan, la app falla rápido con un error explícito en lugar de filtrar silenciosamente sin team (comportamiento anterior). Definirlos en Netlify env vars y en GitHub Actions secrets.
 
 ### Diagrama de Deploys
 
@@ -339,45 +339,25 @@ CREATE INDEX IF NOT EXISTS idx_requests_team_id ON requests(team_id);
 CREATE INDEX IF NOT EXISTS idx_activity_log_team_id ON activity_log(team_id);
 ```
 
-### Row Level Security (RLS)
+### Row Level Security (RLS) — modelo F2.1-soft
 
-El aislamiento entre equipos se hace **a nivel de aplicación** (`.eq('team_id', TEAM_ID)` en cada query). Las RLS policies permiten acceso público con la Anon Key:
+El proyecto **NO tiene auth real** (login con Supabase Auth). El aislamiento entre teams es **best-effort**:
 
-```sql
--- Habilitar RLS en todas las tablas
-ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE requests ENABLE ROW LEVEL SECURITY;
-ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
-ALTER TABLE conversation_state ENABLE ROW LEVEL SECURITY;
+- En la app, cada query incluye `.eq('team_id', getRequiredTeamId())` (lib/teamId.ts).
+- En la BD, las policies sólo aceptan filas con `team_id IS NOT NULL` para limitar daño accidental.
+- Las tablas que el frontend NO escribe (`users`, `teams`, `conversation_state`) están **cerradas a anon**: sólo `service_role` (webhook + admin) puede tocarlas.
+- Un trigger BEFORE UPDATE en `requests` impide cambiar `team_id` desde anon (defensa contra "robar" filas entre teams).
+- `processed_telegram_updates` y `conversation_state` tienen RLS habilitada y **cero policies** → cualquier acceso anon devuelve 0 filas / 42501.
 
--- teams: lectura pública
-CREATE POLICY "Allow public read on teams"
-  ON teams FOR SELECT USING (true);
+Las migraciones que aplican esto viven en `supabase/migrations/`:
 
--- users: lectura pública (el dashboard lista miembros)
-CREATE POLICY "Allow public read on users"
-  ON users FOR SELECT USING (true);
+- `20260507000003_backfill_and_team_id_not_null_and_jsonb.sql` — NOT NULL + jsonb.
+- `20260507000004_rls_policies_v2_soft.sql` — drop de policies `USING (true)`, alta de policies acotadas.
+- `20260507000005_function_search_path_hardening.sql` — search_path explícito.
+- `20260507000007_prevent_team_id_change_from_anon.sql` — trigger anti cross-tenant UPDATE.
 
--- requests: CRUD público (filtrado por team_id en la app)
-CREATE POLICY "Allow public read on requests"
-  ON requests FOR SELECT USING (true);
-
-CREATE POLICY "Allow public insert on requests"
-  ON requests FOR INSERT WITH CHECK (true);
-
-CREATE POLICY "Allow public update on requests"
-  ON requests FOR UPDATE USING (true);
-
-CREATE POLICY "Allow public delete on requests"
-  ON requests FOR DELETE USING (true);
-
--- activity_log: lectura pública
-CREATE POLICY "Allow public read on activity_log"
-  ON activity_log FOR SELECT USING (true);
-```
-
-> **Nota:** El Service Role Key (usado por el bot y cron) bypasea RLS automáticamente.
+> **Nota 1:** El Service Role Key (usado por webhook + cron) bypasea RLS automáticamente.
+> **Nota 2:** Sin auth real, una anon key + team_id válido pueden insertar filas en otro team. Para enforcement real hay que migrar a Supabase Auth + policies con `auth.uid()` (planificado como F2-strict).
 
 ### Habilitar Realtime
 

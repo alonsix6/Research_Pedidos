@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { Request, RequestStatus } from '@/lib/types';
 import { classifyByUrgency } from '@/lib/utils';
-import { canTransition } from '@/lib/statusMachine';
 import { completeRequest, deleteRequest } from '@/lib/services/requests';
 import { motion, AnimatePresence } from 'framer-motion';
 import { staggerContainerVariants, staggerItemVariants } from '@/lib/animations';
@@ -717,7 +716,6 @@ export default function DashboardPage() {
                 requests={filteredRequests}
                 onOpenDetail={handleOpenDetail}
                 onEdit={handleEdit}
-                onStatusChange={handleStatusChange}
                 teamMembers={teamMembers}
                 compact={settings.compactView}
               />

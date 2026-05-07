@@ -6,8 +6,9 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const { startOfWeek, endOfWeek, format } = require('date-fns');
+const { utcToZonedTime, zonedTimeToUtc } = require('date-fns-tz');
 const { es } = require('date-fns/locale');
-const { daysUntilLimaDate } = require('./_dateUtils');
+const { daysUntilLimaDate, LIMA_TIMEZONE } = require('./_dateUtils');
 const { escapeMd } = require('./_telegramMarkdown');
 const { notifyCronFailure } = require('./_notify');
 // Nota: weekly-summary.js no usa getPriorityEmoji directamente, solo formatDaysLeft inline (con caso especial "Vence el lunes").
@@ -79,9 +80,14 @@ function formatDaysLeft(deadline) {
 async function main() {
   console.log('📊 Iniciando resumen semanal...');
 
-  const now = new Date();
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Lunes
-  const weekEnd = endOfWeek(now, { weekStartsOn: 1 }); // Domingo
+  // Calcula el rango "esta semana" en hora Lima (lunes 00:00 a domingo 23:59:59
+  // Lima), no en UTC. Sin esto, completados entre dom 19h-23h59 Lima caían
+  // en lunes UTC y se perdían del resumen del viernes siguiente.
+  const nowLima = utcToZonedTime(new Date(), LIMA_TIMEZONE);
+  const weekStartLima = startOfWeek(nowLima, { weekStartsOn: 1 });
+  const weekEndLima = endOfWeek(nowLima, { weekStartsOn: 1 });
+  const weekStart = zonedTimeToUtc(weekStartLima, LIMA_TIMEZONE);
+  const weekEnd = zonedTimeToUtc(weekEndLima, LIMA_TIMEZONE);
 
   // Obtener pedidos completados esta semana
   const { data: completedThisWeek, error: completedError } = await supabase
@@ -117,8 +123,8 @@ async function main() {
   });
   const dueLater = pendingRequests.filter((r) => daysUntilLimaDate(r.deadline) > 7);
 
-  // Construir mensaje
-  const weekRange = `${format(weekStart, 'd', { locale: es })} - ${format(weekEnd, "d 'de' MMMM", { locale: es })}`;
+  // Construir mensaje (rango en hora Lima para que diga "5 - 11 de mayo" no UTC)
+  const weekRange = `${format(weekStartLima, 'd', { locale: es })} - ${format(weekEndLima, "d 'de' MMMM", { locale: es })}`;
 
   let message = `📊 *RESUMEN SEMANAL*\n`;
   message += `Semana del ${weekRange}\n\n`;
