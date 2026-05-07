@@ -241,26 +241,26 @@ const conversationMessages = {
   start: '📝 *Nuevo pedido para el equipo*\n\n¿Para qué *cliente/cuenta*?',
 
   client: (client: string) =>
-    `✅ Cliente: *${client}*\n\n¿Qué necesitan exactamente? (Describe el pedido)`,
+    `✅ Cliente: *${escapeMd(client)}*\n\n¿Qué necesitan exactamente? (Describe el pedido)`,
 
   description: (desc: string) =>
-    `✅ Pedido: ${desc}\n\n¿Quién lo solicitó? (Nombre y cargo, ej: "Andrea, ejecutiva")`,
+    `✅ Pedido: ${escapeMd(desc)}\n\n¿Quién lo solicitó? (Nombre y cargo, ej: "Andrea, ejecutiva")`,
 
   requester: (requester: string) =>
-    `✅ Solicitante: ${requester}\n\n¿Fecha de entrega?\nPuedes usar:\n• Fecha: "25/12" o "25/12/2024"\n• Relativo: "hoy", "mañana", "en 3 días"`,
+    `✅ Solicitante: ${escapeMd(requester)}\n\n¿Fecha de entrega?\nPuedes usar:\n• Fecha: "25/12" o "25/12/2024"\n• Relativo: "hoy", "mañana", "en 3 días"`,
 
   deadline: (deadline: string, formatted: string, memberNames?: string[]) => {
     let assignOptions = '';
     if (memberNames && memberNames.length > 0) {
       const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
       memberNames.forEach((name, i) => {
-        assignOptions += `${emojis[i] || `${i + 1}.`} ${name}\n`;
+        assignOptions += `${emojis[i] || `${i + 1}.`} ${escapeMd(name)}\n`;
       });
       assignOptions += `${emojis[memberNames.length] || `${memberNames.length + 1}.`} Sin asignar`;
     } else {
       assignOptions = '1️⃣ Sin asignar';
     }
-    return `✅ Deadline: ${formatted}\n\n¿Quién se encarga?\n${assignOptions}\n\nResponde con el número.`;
+    return `✅ Deadline: ${escapeMd(formatted)}\n\n¿Quién se encarga?\n${assignOptions}\n\nResponde con el número.`;
   },
 
   summary: (data: NewRequestData, assigned: string, priority: string, emoji: string) => {
@@ -268,7 +268,7 @@ const conversationMessages = {
     const name = parts[0]?.trim() || data.requester_name;
     const role = parts[1]?.trim() || '';
 
-    return `✅ *Pedido creado!*\n\n📋 *Resumen:*\nCliente: ${data.client}\nPedido: ${data.description}\nSolicitante: ${name}${role ? ` (${role})` : ''}\nDeadline: ${data.deadline}\nAsignado: ${assigned}\nPrioridad: ${emoji} ${priority}\n\n✨ El pedido ha sido guardado y todos pueden verlo con /ver`;
+    return `✅ *Pedido creado!*\n\n📋 *Resumen:*\nCliente: ${escapeMd(data.client)}\nPedido: ${escapeMd(data.description)}\nSolicitante: ${escapeMd(name || '')}${role ? ` (${escapeMd(role)})` : ''}\nDeadline: ${escapeMd(data.deadline)}\nAsignado: ${escapeMd(assigned)}\nPrioridad: ${emoji} ${priority}\n\n✨ El pedido ha sido guardado y todos pueden verlo con /ver`;
   },
 
   cancel: '❌ Pedido cancelado. Usa /nuevopedido cuando quieras crear uno nuevo.',
@@ -715,7 +715,7 @@ async function handleConversationFlow(
       // Enviar confirmación
       await sendMessage(
         chatId,
-        `✅ *Pedido completado!*\n\n${updatedRequest.client} - ${updatedRequest.description}\n\n🎉 ¡Buen trabajo!`
+        `✅ *Pedido completado!*\n\n${escapeMd(updatedRequest.client)} - ${escapeMd(updatedRequest.description)}\n\n🎉 ¡Buen trabajo!`
       );
       break;
 
@@ -881,7 +881,7 @@ async function handleConversationFlow(
       if (blockErr) {
         await sendMessage(chatId, '❌ Error al bloquear el pedido.');
       } else {
-        await sendMessage(chatId, `🔴 *Pedido bloqueado*\n\nMotivo: ${text.trim()}\n\n⏰ El deadline se extenderá automáticamente mientras esté bloqueado.`);
+        await sendMessage(chatId, `🔴 *Pedido bloqueado*\n\nMotivo: ${escapeMd(text.trim())}\n\n⏰ El deadline se extenderá automáticamente mientras esté bloqueado.`);
 
         await getSupabase().from('activity_log').insert({
           request_id: blockedReqId,
@@ -1277,7 +1277,7 @@ async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery) {
         await editMessageText(
           chatId,
           messageId,
-          `✅ *Pedido completado!*\n\n${updatedRequest.client} - ${updatedRequest.description}\n\n🎉 ¡Buen trabajo!`,
+          `✅ *Pedido completado!*\n\n${escapeMd(updatedRequest.client)} - ${escapeMd(updatedRequest.description)}\n\n🎉 ¡Buen trabajo!`,
           'Markdown',
           createMainMenuButtons()
         );
