@@ -112,21 +112,40 @@ export default function DashboardPage() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Throttle del sonido de update: si llegan varios eventos seguidos (ej.
+  // otro user moviendo cards rápido) no queremos un wooshazo en cascada.
+  // 1500ms entre sonidos consecutivos es suficiente para notar sin molestar.
+  const lastWhooshRef = useRef(0);
+  const throttledWhoosh = useCallback(() => {
+    const now = Date.now();
+    if (now - lastWhooshRef.current < 1500) return;
+    lastWhooshRef.current = now;
+    playWhoosh();
+  }, [playWhoosh]);
+
   // Realtime data with optimistic updates
-  const { requests, loading, error, isConnected, refresh, optimisticUpdate, optimisticDelete } =
-    useRealtimeRequests({
-      onInsert: (req) => {
-        playNotification();
-        showToast(
-          'notification',
-          'Nuevo pedido',
-          `${req.client}: ${req.description.slice(0, 50)}...`
-        );
-      },
-      onUpdate: () => {
-        playWhoosh();
-      },
-    });
+  const {
+    requests,
+    loading,
+    error,
+    isConnected,
+    refresh,
+    optimisticUpdate,
+    optimisticDelete,
+    recentlyUpdatedIds,
+  } = useRealtimeRequests({
+    onInsert: (req) => {
+      playNotification();
+      showToast(
+        'notification',
+        'Nuevo pedido',
+        `${req.client}: ${req.description.slice(0, 50)}...`
+      );
+    },
+    onUpdate: () => {
+      throttledWhoosh();
+    },
+  });
 
   // DnD Sensors
   const sensors = useSensors(
@@ -433,6 +452,7 @@ export default function DashboardPage() {
                   onOpenDetail={handleOpenDetail}
                   compact={settings.compactView}
                   isDraggable
+                  pulse={recentlyUpdatedIds.has(request.id)}
                 />
               </motion.div>
             ))}
@@ -760,6 +780,7 @@ export default function DashboardPage() {
                                   request={request}
                                   compact={settings.compactView}
                                   onOpenDetail={handleOpenDetail}
+                                  pulse={recentlyUpdatedIds.has(request.id)}
                                 />
                               </motion.div>
                             ))}

@@ -21,7 +21,15 @@ interface UseRealtimeRequestsReturn {
   optimisticUpdate: (id: string, changes: Partial<Request>) => void;
   optimisticDelete: (id: string) => void;
   optimisticInsert: (request: Request) => void;
+  /**
+   * Set de ids que recibieron un evento realtime (INSERT/UPDATE) en los
+   * últimos PULSE_TTL_MS milisegundos. Usado por las cards para hacer un
+   * pulse visual sutil cuando otro user toca un pedido.
+   */
+  recentlyUpdatedIds: Set<string>;
 }
+
+const PULSE_TTL_MS = 600;
 
 export function useRealtimeRequests(
   options: UseRealtimeRequestsOptions = {}
@@ -30,7 +38,27 @@ export function useRealtimeRequests(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [recentlyUpdatedIds, setRecentlyUpdatedIds] = useState<Set<string>>(new Set());
   const channelRef = useRef<RealtimeChannel | null>(null);
+
+  // Marca un id como "recién actualizado" durante PULSE_TTL_MS para que las
+  // cards puedan animarse. Después se limpia automáticamente.
+  const markPulse = useCallback((id: string) => {
+    setRecentlyUpdatedIds((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+    setTimeout(() => {
+      setRecentlyUpdatedIds((prev) => {
+        if (!prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }, PULSE_TTL_MS);
+  }, []);
 
   // Store callbacks in ref to avoid re-subscribing on every render
   const optionsRef = useRef(options);
@@ -104,6 +132,7 @@ export function useRealtimeRequests(
             }
             return sortByDeadline([...prev, newRequest]);
           });
+          markPulse(newRequest.id);
           optionsRef.current.onInsert?.(newRequest);
         }
       )
@@ -120,6 +149,7 @@ export function useRealtimeRequests(
           setRequests((prev) =>
             sortByDeadline(prev.map((r) => (r.id === updatedRequest.id ? updatedRequest : r)))
           );
+          markPulse(updatedRequest.id);
           optionsRef.current.onUpdate?.(updatedRequest);
         }
       )
@@ -149,7 +179,7 @@ export function useRealtimeRequests(
         supabase.removeChannel(channelRef.current);
       }
     };
-  }, [fetchRequests]);
+  }, [fetchRequests, markPulse]);
 
   return {
     requests,
@@ -160,5 +190,6 @@ export function useRealtimeRequests(
     optimisticUpdate,
     optimisticDelete,
     optimisticInsert,
+    recentlyUpdatedIds,
   };
 }

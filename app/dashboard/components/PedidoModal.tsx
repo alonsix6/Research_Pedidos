@@ -8,7 +8,8 @@ import { supabase } from '@/lib/supabase';
 import { calculatePriority } from '@/lib/utils';
 import { logActivity } from '@/lib/activityLog';
 import { getRequiredTeamId } from '@/lib/teamId';
-import { X, Briefcase, FileText, User, Calendar, Send, Loader2 } from 'lucide-react';
+import { useStaleNotice } from '@/lib/hooks/useStaleNotice';
+import { AlertTriangle, X, Briefcase, FileText, User, Calendar, Send, Loader2 } from 'lucide-react';
 import Button3D from './controls/Button3D';
 import CalendarPicker from './controls/CalendarPicker';
 
@@ -41,6 +42,16 @@ export default function PedidoModal({
     assigned_to: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Snapshot del `updated_at` al abrir el modal. Se usa para:
+  //   1) detectar concurrent edit (useStaleNotice escucha realtime y compara)
+  //   2) conflict check al guardar (.eq('updated_at', snapshot))
+  const [snapshotUpdatedAt, setSnapshotUpdatedAt] = useState<string | null>(null);
+  const {
+    isStale,
+    latestRow,
+    dismiss: dismissStale,
+  } = useStaleNotice(isOpen && editingRequest ? editingRequest.id : null, snapshotUpdatedAt);
 
   const modalRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -78,11 +89,29 @@ export default function PedidoModal({
           deadline: editingRequest.deadline.split('T')[0],
           assigned_to: editingRequest.assigned_to || '',
         });
+        setSnapshotUpdatedAt(editingRequest.updated_at);
       } else {
         resetForm();
+        setSnapshotUpdatedAt(null);
       }
     }
   }, [isOpen, editingRequest]);
+
+  // "Recargar" del banner stale: pisa el form con la versión nueva del row
+  // y refresca el snapshot para que el siguiente save no choque.
+  function applyLatestVersion() {
+    if (!latestRow) return;
+    setFormData({
+      client: latestRow.client,
+      description: latestRow.description,
+      requester_name: latestRow.requester_name,
+      requester_role: latestRow.requester_role || '',
+      deadline: latestRow.deadline.split('T')[0],
+      assigned_to: latestRow.assigned_to || '',
+    });
+    setSnapshotUpdatedAt(latestRow.updated_at);
+    dismissStale();
+  }
 
   async function loadUsers() {
     const { data } = await supabase
@@ -150,12 +179,26 @@ export default function PedidoModal({
       };
 
       if (editingRequest) {
-        const { error } = await supabase
+        // Conflict-detected update: solo aplica si nadie tocó el row desde
+        // que el modal lo abrió. `.select().single()` con `.eq('updated_at',
+        // snapshot)` retorna 0 filas (PGRST116) si otro user pisó.
+        const { data, error } = await supabase
           .from('requests')
           .update({ ...requestData, updated_at: new Date().toISOString() })
           .eq('id', editingRequest.id)
-          .eq('team_id', getRequiredTeamId());
+          .eq('team_id', getRequiredTeamId())
+          .eq('updated_at', snapshotUpdatedAt ?? editingRequest.updated_at)
+          .select()
+          .single();
 
+        if ((error as { code?: string } | null)?.code === 'PGRST116' || (!error && !data)) {
+          setErrors({
+            submit:
+              'Otro usuario editó este pedido mientras lo tenías abierto. Usa "Ver cambios" arriba para recargar y reintentar.',
+          });
+          setLoading(false);
+          return;
+        }
         if (error) throw error;
 
         // Log edit activity with field changes
@@ -289,6 +332,37 @@ export default function PedidoModal({
 
             {/* Screen del formulario */}
             <div className="flex-1 overflow-y-auto p-4">
+              {isStale && (
+                <div
+                  role="alert"
+                  className="mb-3 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100"
+                >
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-400" />
+                  <div className="flex-1">
+                    <p className="font-medium">Otro usuario editó este pedido</p>
+                    <p className="opacity-80">
+                      Tu form muestra contenido que ya no es la versión actual. Si guardás como
+                      está, vas a obtener un error de conflicto.
+                    </p>
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={applyLatestVersion}
+                        className="rounded-md bg-amber-500/30 px-2 py-1 text-xs font-medium hover:bg-amber-500/40"
+                      >
+                        Ver cambios
+                      </button>
+                      <button
+                        type="button"
+                        onClick={dismissStale}
+                        className="rounded-md px-2 py-1 text-xs opacity-70 hover:opacity-100"
+                      >
+                        Continuar igual
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="lcd-screen p-4">
                 <form id={formId} onSubmit={handleSubmit} className="space-y-4" noValidate>
                   {/* Cliente */}

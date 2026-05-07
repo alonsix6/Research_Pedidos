@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState } from 'react';
+import { memo, useState, type CSSProperties } from 'react';
 import { Request } from '@/lib/types';
 import { formatLimaDate, formatDaysLeft } from '@/lib/utils';
 import {
@@ -28,6 +28,12 @@ interface PedidoPadProps {
   isDraggable?: boolean;
   /** Start collapsed - useful for large lists */
   defaultCollapsed?: boolean;
+  /**
+   * Cuando es true, la card hace un pulse visual de ~600ms para señalar que
+   * llegó un evento realtime sobre este pedido (otro usuario lo modificó).
+   * Lo provee `useRealtimeRequests().recentlyUpdatedIds`.
+   */
+  pulse?: boolean;
 }
 
 // Threshold for auto-truncating long descriptions
@@ -42,6 +48,7 @@ function PedidoPadInner({
   compact = false,
   isDraggable = false,
   defaultCollapsed = false,
+  pulse = false,
 }: PedidoPadProps) {
   const [isExpanded, setIsExpanded] = useState(!defaultCollapsed);
   const daysLeft = formatDaysLeft(request.deadline);
@@ -61,7 +68,14 @@ function PedidoPadInner({
     transition,
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 50 : 'auto',
-  };
+    // Pulse: glow cyan suave por ~600ms cuando llega un cambio realtime.
+    // Usamos boxShadow inline para no chocar con drag/hover variants.
+    boxShadow: pulse
+      ? '0 0 0 2px rgba(34, 211, 238, 0.55), 0 0 18px rgba(34, 211, 238, 0.35)'
+      : undefined,
+    transitionProperty: 'box-shadow',
+    transitionDuration: '350ms',
+  } as CSSProperties;
 
   return (
     <motion.article
