@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { getRequiredTeamId } from '@/lib/teamId';
 import { Team } from '@/lib/types';
-
-const TEAM_ID = process.env.NEXT_PUBLIC_TEAM_ID;
 
 interface UseTeamInfoReturn {
   team: Team | null;
@@ -17,16 +16,11 @@ export function useTeamInfo(): UseTeamInfoReturn {
 
   useEffect(() => {
     async function fetchTeam() {
-      if (!TEAM_ID) {
-        setLoading(false);
-        return;
-      }
-
       try {
         const { data, error } = await supabase
           .from('teams')
           .select('*')
-          .eq('id', TEAM_ID)
+          .eq('id', getRequiredTeamId())
           .single();
 
         if (!error && data) {

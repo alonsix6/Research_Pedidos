@@ -70,7 +70,8 @@ import PedidoDetailPanel from './components/PedidoDetailPanel';
 import KanbanBoard from './components/KanbanBoard';
 import AnalyticsPanel from './components/AnalyticsPanel';
 
-const TEAM_ID = process.env.NEXT_PUBLIC_TEAM_ID;
+import { getRequiredTeamId } from '@/lib/teamId';
+
 const MAX_VISIBLE_COMPLETED = 3;
 
 type ViewMode = 'list' | 'kanban';
@@ -193,7 +194,7 @@ export default function DashboardPage() {
     });
 
     try {
-      let query = supabase
+      const { error } = await supabase
         .from('requests')
         .update({
           status: 'completed',
@@ -201,13 +202,8 @@ export default function DashboardPage() {
           updated_at: new Date().toISOString(),
           status_changed_at: new Date().toISOString(),
         })
-        .eq('id', id);
-
-      if (TEAM_ID) {
-        query = query.eq('team_id', TEAM_ID);
-      }
-
-      const { error } = await query;
+        .eq('id', id)
+        .eq('team_id', getRequiredTeamId());
       if (error) throw error;
 
       // Log activity
@@ -240,13 +236,11 @@ export default function DashboardPage() {
     optimisticDelete(id);
 
     try {
-      let query = supabase.from('requests').delete().eq('id', id);
-
-      if (TEAM_ID) {
-        query = query.eq('team_id', TEAM_ID);
-      }
-
-      const { error } = await query;
+      const { error } = await supabase
+        .from('requests')
+        .delete()
+        .eq('id', id)
+        .eq('team_id', getRequiredTeamId());
       if (error) throw error;
       showToast('info', 'Eliminado', 'El pedido ha sido eliminado');
     } catch (err) {

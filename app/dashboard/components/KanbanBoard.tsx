@@ -10,8 +10,6 @@ import { logActivity } from '@/lib/activityLog';
 import StatusBadge from './StatusBadge';
 import { ExternalLink, Pencil } from 'lucide-react';
 
-const TEAM_ID = process.env.NEXT_PUBLIC_TEAM_ID;
-
 interface KanbanBoardProps {
   requests: Request[];
   onOpenDetail?: (request: Request) => void;

@@ -6,6 +6,7 @@ import { getNextStatuses, getStatusConfig, canTransition, requiresBlockedReason 
 import { formatLimaDate, formatDaysLeft } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { logActivity } from '@/lib/activityLog';
+import { getRequiredTeamId } from '@/lib/teamId';
 import { motion, AnimatePresence } from 'framer-motion';
 import { modalOverlayVariants, springs } from '@/lib/animations';
 import {
@@ -20,8 +21,6 @@ import {
 import StatusBadge from './StatusBadge';
 import StatusTimeline from './StatusTimeline';
 import CommentThread from './CommentThread';
-
-const TEAM_ID = process.env.NEXT_PUBLIC_TEAM_ID;
 
 interface PedidoDetailPanelProps {
   request: Request;
@@ -90,16 +89,11 @@ export default function PedidoDetailPanel({
         updateData.completed_at = new Date().toISOString();
       }
 
-      let query = supabase
+      const { error } = await supabase
         .from('requests')
         .update(updateData)
-        .eq('id', request.id);
-
-      if (TEAM_ID) {
-        query = query.eq('team_id', TEAM_ID);
-      }
-
-      const { error } = await query;
+        .eq('id', request.id)
+        .eq('team_id', getRequiredTeamId());
       if (error) throw error;
 
       // Log the activity

@@ -19,12 +19,16 @@ import {
 import { Request, ConversationStep, NewRequestData, CompleteRequestData, User } from '../../lib/types';
 import { differenceInDays, parseISO, differenceInMinutes } from 'date-fns';
 import { parseNaturalDate, calculatePriority, getPriorityEmoji, formatLimaDate } from '../../lib/utils';
+import { getRequiredTeamId } from '../../lib/teamId';
+import { escapeMd } from '../../lib/telegramMarkdown';
 
 // Cliente de Supabase con service role (lazy-initialized)
 const getSupabase = (): SupabaseClient => getSupabaseAdmin();
 
-// Team ID para filtrar datos (cada bot atiende un solo equipo)
-const TEAM_ID = process.env.TEAM_ID;
+// Team ID para filtrar datos (cada bot atiende un solo equipo).
+// Falla en module load si TEAM_ID no está configurado, en lugar de degradar
+// silenciosamente a "ver todos los teams".
+const TEAM_ID: string = getRequiredTeamId();
 
 // Rate limiting: máximo 3 pedidos cada 10 minutos por usuario
 const RATE_LIMIT_MAX_REQUESTS = 3;
@@ -149,15 +153,28 @@ async function clearConversationState(
 }
 
 /**
- * Limpia conversaciones expiradas (más de 30 minutos sin actividad)
+ * Inserta el update_id en la tabla de idempotencia.
+ * Devuelve true si ya estaba procesado (debe abortar el handler), false si es nuevo.
+ *
+ * Telegram reenvía un update si el webhook no responde 200 en ~30s. Sin esta
+ * verificación, el reintento ejecutaría /nuevopedido dos veces y crearía pedidos
+ * duplicados. La tabla `processed_telegram_updates` se limpia con pg_cron (jobs
+ * `cleanup-processed-telegram-updates`).
  */
-async function cleanupExpiredConversations(supabase: SupabaseClient): Promise<void> {
-  const expirationTime = new Date(Date.now() - CONVERSATION_TIMEOUT_MINUTES * 60 * 1000).toISOString();
+async function isAlreadyProcessed(updateId: number, supabase: SupabaseClient): Promise<boolean> {
+  const { error } = await supabase
+    .from('processed_telegram_updates')
+    .insert({ update_id: updateId });
 
-  await supabase
-    .from('conversation_state')
-    .delete()
-    .lt('updated_at', expirationTime);
+  if (!error) return false; // first time we see this update_id
+
+  // 23505 = unique_violation = ya procesamos este update
+  if ((error as { code?: string }).code === '23505') return true;
+
+  // Cualquier otro error: log y continuar (preferimos riesgo de duplicado a
+  // bloquear todo el bot por un fallo del check de dedup).
+  console.error('Idempotency check failed (continuing):', error);
+  return false;
 }
 
 /**
@@ -200,9 +217,7 @@ async function getTeamMembers(supabase: SupabaseClient): Promise<{ id: string; n
     .select('id, name')
     .order('name', { ascending: true });
 
-  if (TEAM_ID) {
-    query = query.eq('team_id', TEAM_ID);
-  }
+  query = query.eq('team_id', TEAM_ID);
 
   const { data: users } = await query;
   return users || [];
@@ -333,10 +348,17 @@ export const handler: Handler = async (event) => {
   try {
     const update = JSON.parse(event.body || '{}');
 
-    // Limpiar conversaciones expiradas periódicamente (1% de las requests)
-    if (Math.random() < 0.01) {
-      await cleanupExpiredConversations(getSupabase());
+    // Idempotencia: si Telegram reintenta, no reprocesamos.
+    if (typeof update.update_id === 'number') {
+      if (await isAlreadyProcessed(update.update_id, getSupabase())) {
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ ok: true, deduplicated: true }),
+        };
+      }
     }
+
+    // (Cleanup de conversation_state ahora corre via pg_cron cada 5 min.)
 
     // Manejar callback queries (botones inline)
     if (update.callback_query) {
@@ -636,7 +658,7 @@ async function handleConversationFlow(
           status: 'pending',
           priority: priority,
           created_by: user.id,
-          ...(TEAM_ID && { team_id: TEAM_ID }),
+          team_id: TEAM_ID,
         });
 
       if (error) {
@@ -747,7 +769,7 @@ async function handleConversationFlow(
         return;
       }
 
-      let statusMsg = `📋 *${statusReq.client}* - ${statusReq.description}\n`;
+      let statusMsg = `📋 *${escapeMd(statusReq.client)}* - ${escapeMd(statusReq.description)}\n`;
       statusMsg += `Estado actual: ${statusLabels[statusReq.status]}\n\n`;
       statusMsg += `¿A qué estado deseas cambiar?\n\n`;
       nextStatuses.forEach((s, i) => {
@@ -820,7 +842,7 @@ async function handleConversationFlow(
           request_id: changeReqId,
           action: 'status_changed',
           details: { to_status: newStatus },
-          ...(TEAM_ID && { team_id: TEAM_ID }),
+          team_id: TEAM_ID,
         });
       }
 
@@ -865,7 +887,7 @@ async function handleConversationFlow(
           request_id: blockedReqId,
           action: 'blocked',
           details: { blocked_reason: text.trim() },
-          ...(TEAM_ID && { team_id: TEAM_ID }),
+          team_id: TEAM_ID,
         });
       }
 
@@ -919,7 +941,7 @@ async function handleConversationFlow(
           request_id: commentTargetId,
           user_id: commentUser?.id || null,
           content: text.trim(),
-          ...(TEAM_ID && { team_id: TEAM_ID }),
+          team_id: TEAM_ID,
         });
 
       if (commentErr) {
@@ -933,7 +955,7 @@ async function handleConversationFlow(
           user_id: commentUser?.id || null,
           action: 'commented',
           details: { comment: text.trim() },
-          ...(TEAM_ID && { team_id: TEAM_ID }),
+          team_id: TEAM_ID,
         });
       }
 
@@ -954,9 +976,7 @@ async function handleCompletarCommand(chatId: number, userId: string) {
     .order('deadline', { ascending: true })
     .limit(10);
 
-  if (TEAM_ID) {
-    completarQuery = completarQuery.eq('team_id', TEAM_ID);
-  }
+  completarQuery = completarQuery.eq('team_id', TEAM_ID);
 
   const { data: requests, error } = await completarQuery;
 
@@ -986,7 +1006,7 @@ async function handleCompletarCommand(chatId: number, userId: string) {
   let message = '📝 *Pedidos activos*\n\nResponde con el número del pedido a completar:\n\n';
   requests.forEach((req: Request, index: number) => {
     const emoji = getPriorityEmoji(req.priority);
-    message += `*${index + 1}.* ${emoji} ${req.client} - ${req.description.substring(0, 40)}${req.description.length > 40 ? '...' : ''}\n`;
+    message += `*${index + 1}.* ${emoji} ${escapeMd(req.client)} - ${escapeMd(req.description.substring(0, 40))}${req.description.length > 40 ? '...' : ''}\n`;
   });
   message += '\nO usa /cancelar para cancelar.';
 
@@ -1003,9 +1023,7 @@ async function handleVerCommand(chatId: number) {
     .in('status', ['pending', 'in_progress'])
     .order('deadline', { ascending: true });
 
-  if (TEAM_ID) {
-    verQuery = verQuery.eq('team_id', TEAM_ID);
-  }
+  verQuery = verQuery.eq('team_id', TEAM_ID);
 
   const { data: requests, error } = await verQuery;
 
@@ -1057,9 +1075,7 @@ async function handleHoyCommand(chatId: number) {
     .select('*')
     .in('status', ['pending', 'in_progress']);
 
-  if (TEAM_ID) {
-    hoyQuery = hoyQuery.eq('team_id', TEAM_ID);
-  }
+  hoyQuery = hoyQuery.eq('team_id', TEAM_ID);
 
   const { data: requests, error } = await hoyQuery;
 
@@ -1097,9 +1113,7 @@ async function handleSemanaCommand(chatId: number) {
     .select('*')
     .in('status', ['pending', 'in_progress']);
 
-  if (TEAM_ID) {
-    semanaQuery = semanaQuery.eq('team_id', TEAM_ID);
-  }
+  semanaQuery = semanaQuery.eq('team_id', TEAM_ID);
 
   const { data: requests, error } = await semanaQuery;
 
@@ -1137,9 +1151,7 @@ async function handleUrgenteCommand(chatId: number) {
     .select('*')
     .in('status', ['pending', 'in_progress']);
 
-  if (TEAM_ID) {
-    urgenteQuery = urgenteQuery.eq('team_id', TEAM_ID);
-  }
+  urgenteQuery = urgenteQuery.eq('team_id', TEAM_ID);
 
   const { data: requests, error } = await urgenteQuery;
 
@@ -1234,7 +1246,7 @@ async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery) {
         .single();
 
       if (request && messageId) {
-        const confirmMessage = `¿Completar este pedido?\n\n*${request.client}*\n${request.description}`;
+        const confirmMessage = `¿Completar este pedido?\n\n*${escapeMd(request.client)}*\n${escapeMd(request.description)}`;
         const buttons = createCompleteConfirmButtons(requestId);
         await editMessageText(chatId, messageId, confirmMessage, 'Markdown', buttons);
       }
@@ -1367,7 +1379,7 @@ async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery) {
             request_id: reqId,
             action: 'status_changed',
             details: { to_status: newStatus },
-            ...(TEAM_ID && { team_id: TEAM_ID }),
+            team_id: TEAM_ID,
           });
         }
       }
@@ -1391,9 +1403,7 @@ async function handleEstadoCommand(chatId: number, userId: string) {
     .order('deadline', { ascending: true })
     .limit(10);
 
-  if (TEAM_ID) {
-    query = query.eq('team_id', TEAM_ID);
-  }
+  query = query.eq('team_id', TEAM_ID);
 
   const { data: requests, error } = await query;
 
@@ -1415,7 +1425,7 @@ async function handleEstadoCommand(chatId: number, userId: string) {
   let msg = '📋 *Cambiar estado de pedido*\n\nSelecciona el pedido:\n\n';
   requests.forEach((req: Request, i: number) => {
     const emoji = statusLabels[req.status] || '❓';
-    msg += `${i + 1}. ${emoji} *${req.client}* - ${req.description.slice(0, 40)}${req.description.length > 40 ? '...' : ''}\n`;
+    msg += `${i + 1}. ${emoji} *${escapeMd(req.client)}* - ${escapeMd(req.description.slice(0, 40))}${req.description.length > 40 ? '...' : ''}\n`;
   });
   msg += '\nResponde con el número o /cancelar';
 
@@ -1441,9 +1451,7 @@ async function handleComentarCommand(chatId: number, userId: string) {
     .order('deadline', { ascending: true })
     .limit(10);
 
-  if (TEAM_ID) {
-    query = query.eq('team_id', TEAM_ID);
-  }
+  query = query.eq('team_id', TEAM_ID);
 
   const { data: requests, error } = await query;
 
@@ -1459,7 +1467,7 @@ async function handleComentarCommand(chatId: number, userId: string) {
 
   let msg = '💬 *Agregar comentario*\n\nSelecciona el pedido:\n\n';
   requests.forEach((req: Request, i: number) => {
-    msg += `${i + 1}. *${req.client}* - ${req.description.slice(0, 40)}${req.description.length > 40 ? '...' : ''}\n`;
+    msg += `${i + 1}. *${escapeMd(req.client)}* - ${escapeMd(req.description.slice(0, 40))}${req.description.length > 40 ? '...' : ''}\n`;
   });
   msg += '\nResponde con el número o /cancelar';
 

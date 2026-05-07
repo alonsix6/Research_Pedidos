@@ -1,6 +1,5 @@
 import { supabase } from './supabase';
-
-const TEAM_ID = process.env.NEXT_PUBLIC_TEAM_ID;
+import { getRequiredTeamId } from './teamId';
 
 export type ActivityAction =
   | 'created'
@@ -44,7 +43,7 @@ export async function logActivity(
       user_id: userId,
       action,
       details,
-      ...(TEAM_ID && { team_id: TEAM_ID }),
+      team_id: getRequiredTeamId(),
     });
 
     if (error) {
@@ -59,17 +58,12 @@ export async function logActivity(
  * Get activity history for a specific request.
  */
 export async function getActivityLog(requestId: string) {
-  let query = supabase
+  const { data, error } = await supabase
     .from('activity_log')
     .select('*')
     .eq('request_id', requestId)
+    .eq('team_id', getRequiredTeamId())
     .order('created_at', { ascending: false });
-
-  if (TEAM_ID) {
-    query = query.eq('team_id', TEAM_ID);
-  }
-
-  const { data, error } = await query;
   if (error) {
     console.error('Error fetching activity log:', error);
     return [];

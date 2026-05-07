@@ -2,10 +2,9 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { getRequiredTeamId } from '@/lib/teamId';
 import { Comment } from '@/lib/types';
 import { RealtimeChannel } from '@supabase/supabase-js';
-
-const TEAM_ID = process.env.NEXT_PUBLIC_TEAM_ID;
 
 interface UseCommentsReturn {
   comments: Comment[];
@@ -26,17 +25,12 @@ export function useComments(requestId: string | null): UseCommentsReturn {
 
     setLoading(true);
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('comments')
         .select('*')
         .eq('request_id', requestId)
+        .eq('team_id', getRequiredTeamId())
         .order('created_at', { ascending: true });
-
-      if (TEAM_ID) {
-        query = query.eq('team_id', TEAM_ID);
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
       setComments(data || []);
     } catch (err) {
@@ -88,7 +82,7 @@ export function useComments(requestId: string | null): UseCommentsReturn {
           request_id: reqId,
           user_id: userId,
           content: content.trim(),
-          ...(TEAM_ID && { team_id: TEAM_ID }),
+          team_id: getRequiredTeamId(),
         });
 
         if (error) throw error;

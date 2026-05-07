@@ -7,11 +7,10 @@ import { Request } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { calculatePriority } from '@/lib/utils';
 import { logActivity } from '@/lib/activityLog';
+import { getRequiredTeamId } from '@/lib/teamId';
 import { X, Briefcase, FileText, User, Calendar, Send, Loader2 } from 'lucide-react';
 import Button3D from './controls/Button3D';
 import CalendarPicker from './controls/CalendarPicker';
-
-const TEAM_ID = process.env.NEXT_PUBLIC_TEAM_ID;
 
 interface ModalUser {
   id: string;
@@ -86,11 +85,11 @@ export default function PedidoModal({
   }, [isOpen, editingRequest]);
 
   async function loadUsers() {
-    let query = supabase.from('users').select('id, name').order('name');
-    if (TEAM_ID) {
-      query = query.eq('team_id', TEAM_ID);
-    }
-    const { data } = await query;
+    const { data } = await supabase
+      .from('users')
+      .select('id, name')
+      .eq('team_id', getRequiredTeamId())
+      .order('name');
     if (data) {
       setUsers(data);
     }
@@ -151,16 +150,11 @@ export default function PedidoModal({
       };
 
       if (editingRequest) {
-        let updateQuery = supabase
+        const { error } = await supabase
           .from('requests')
           .update({ ...requestData, updated_at: new Date().toISOString() })
-          .eq('id', editingRequest.id);
-
-        if (TEAM_ID) {
-          updateQuery = updateQuery.eq('team_id', TEAM_ID);
-        }
-
-        const { error } = await updateQuery;
+          .eq('id', editingRequest.id)
+          .eq('team_id', getRequiredTeamId());
 
         if (error) throw error;
 
@@ -192,7 +186,7 @@ export default function PedidoModal({
         const { error } = await supabase.from('requests').insert({
           ...requestData,
           created_by: users[0]?.id || null,
-          ...(TEAM_ID && { team_id: TEAM_ID }),
+          team_id: getRequiredTeamId(),
         });
 
         if (error) throw error;

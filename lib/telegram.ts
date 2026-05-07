@@ -1,9 +1,10 @@
 import { Request, User } from './types';
 import { formatLimaDate, formatDaysLeft, getPriorityEmoji, getStatusEmoji } from './utils';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { getRequiredTeamId } from './teamId';
+import { escapeMd } from './telegramMarkdown';
 
 const TELEGRAM_API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
-const TEAM_ID = process.env.TEAM_ID;
 
 // Tipos para inline keyboard
 export interface InlineKeyboardButton {
@@ -227,19 +228,19 @@ export function formatRequestForTelegram(request: Request, includeDetails: boole
   const statusEmoji = getStatusEmoji(request.status);
   const daysLeft = formatDaysLeft(request.deadline);
 
-  let message = `${priorityEmoji} *${request.client.toUpperCase()}*\n`;
-  message += `${request.description}\n`;
+  let message = `${priorityEmoji} *${escapeMd(request.client.toUpperCase())}*\n`;
+  message += `${escapeMd(request.description)}\n`;
 
   if (includeDetails) {
     message += `\n📋 Detalles:\n`;
-    message += `• Solicitante: ${request.requester_name} (${request.requester_role})\n`;
+    message += `• Solicitante: ${escapeMd(request.requester_name)} (${escapeMd(request.requester_role)})\n`;
     message += `• Deadline: ${formatLimaDate(request.deadline)} (${daysLeft})\n`;
     message += `• Estado: ${statusEmoji} ${request.status}\n`;
     if (request.assigned_to) {
-      message += `• Asignado: @${request.assigned_to}\n`;
+      message += `• Asignado: @${escapeMd(request.assigned_to)}\n`;
     }
   } else {
-    message += `Solicitante: ${request.requester_name}\n`;
+    message += `Solicitante: ${escapeMd(request.requester_name)}\n`;
     message += `${daysLeft}\n`;
   }
 
@@ -315,16 +316,12 @@ Usa /ayuda para ver todos los comandos disponibles.
  * Valida que el mensaje venga de un usuario autorizado (en el team actual)
  */
 export async function isAuthorizedUser(telegramId: string, supabase: SupabaseClient): Promise<boolean> {
-  let query = supabase
+  const { data, error } = await supabase
     .from('users')
     .select('id')
-    .eq('telegram_id', telegramId);
-
-  if (TEAM_ID) {
-    query = query.eq('team_id', TEAM_ID);
-  }
-
-  const { data, error } = await query.single();
+    .eq('telegram_id', telegramId)
+    .eq('team_id', getRequiredTeamId())
+    .single();
   return !error && !!data;
 }
 
@@ -335,16 +332,12 @@ export async function getUserByTelegramId(
   telegramId: string,
   supabase: SupabaseClient
 ): Promise<User | null> {
-  let query = supabase
+  const { data, error } = await supabase
     .from('users')
     .select('*')
-    .eq('telegram_id', telegramId);
-
-  if (TEAM_ID) {
-    query = query.eq('team_id', TEAM_ID);
-  }
-
-  const { data, error } = await query.single();
+    .eq('telegram_id', telegramId)
+    .eq('team_id', getRequiredTeamId())
+    .single();
 
   if (error || !data) {
     return null;

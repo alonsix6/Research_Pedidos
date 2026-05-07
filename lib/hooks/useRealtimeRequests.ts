@@ -2,10 +2,9 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { getRequiredTeamId } from '@/lib/teamId';
 import { Request } from '@/lib/types';
 import { RealtimeChannel } from '@supabase/supabase-js';
-
-const TEAM_ID = process.env.NEXT_PUBLIC_TEAM_ID;
 
 interface UseRealtimeRequestsOptions {
   onInsert?: (request: Request) => void;
@@ -47,16 +46,11 @@ export function useRealtimeRequests(
       setLoading(true);
       setError(null);
 
-      let query = supabase
+      const { data, error: fetchError } = await supabase
         .from('requests')
         .select('*')
+        .eq('team_id', getRequiredTeamId())
         .order('deadline', { ascending: true });
-
-      if (TEAM_ID) {
-        query = query.eq('team_id', TEAM_ID);
-      }
-
-      const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
       setRequests(data || []);
@@ -88,9 +82,7 @@ export function useRealtimeRequests(
     fetchRequests();
 
     // Realtime filter: only listen for this team's changes
-    const realtimeFilter = TEAM_ID
-      ? `team_id=eq.${TEAM_ID}`
-      : undefined;
+    const realtimeFilter = `team_id=eq.${getRequiredTeamId()}`;
 
     // Create realtime channel
     const channel = supabase
@@ -101,7 +93,7 @@ export function useRealtimeRequests(
           event: 'INSERT',
           schema: 'public',
           table: 'requests',
-          ...(realtimeFilter && { filter: realtimeFilter }),
+          filter: realtimeFilter,
         },
         (payload) => {
           const newRequest = payload.new as Request;
@@ -121,7 +113,7 @@ export function useRealtimeRequests(
           event: 'UPDATE',
           schema: 'public',
           table: 'requests',
-          ...(realtimeFilter && { filter: realtimeFilter }),
+          filter: realtimeFilter,
         },
         (payload) => {
           const updatedRequest = payload.new as Request;
@@ -137,7 +129,7 @@ export function useRealtimeRequests(
           event: 'DELETE',
           schema: 'public',
           table: 'requests',
-          ...(realtimeFilter && { filter: realtimeFilter }),
+          filter: realtimeFilter,
         },
         (payload) => {
           const deletedId = (payload.old as { id: string }).id;

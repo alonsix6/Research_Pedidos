@@ -5,7 +5,9 @@
  */
 
 const { createClient } = require('@supabase/supabase-js');
-const { differenceInDays, parseISO } = require('date-fns');
+const { daysUntilLimaDate } = require('./_dateUtils');
+const { escapeMd } = require('./_telegramMarkdown');
+const { notifyCronFailure } = require('./_notify');
 
 // Variables de entorno (configuradas en GitHub Secrets)
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -14,9 +16,10 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const TEAM_ID = process.env.TEAM_ID;
 
-// Validar variables de entorno
-if (!SUPABASE_URL || !SUPABASE_KEY || !TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-  console.error('❌ Error: Faltan variables de entorno necesarias');
+// Validar variables de entorno (TEAM_ID es obligatorio: sin él, el filtro de team
+// se omitía silenciosamente y el cron veía datos de todos los teams).
+if (!SUPABASE_URL || !SUPABASE_KEY || !TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID || !TEAM_ID) {
+  console.error('❌ Error: Faltan variables de entorno necesarias (incluyendo TEAM_ID)');
   process.exit(1);
 }
 
@@ -65,10 +68,10 @@ function getPriorityEmoji(priority) {
 }
 
 /**
- * Formatea días restantes
+ * Formatea días restantes (en hora Lima)
  */
 function formatDaysLeft(deadline) {
-  const daysLeft = differenceInDays(parseISO(deadline), new Date());
+  const daysLeft = daysUntilLimaDate(deadline);
 
   if (daysLeft < 0) return `Atrasado ${Math.abs(daysLeft)} día(s)`;
   if (daysLeft === 0) return 'Vence HOY';
@@ -80,122 +83,109 @@ function formatDaysLeft(deadline) {
  * Script principal
  */
 async function main() {
-  try {
-    console.log('🔔 Iniciando recordatorio diario...');
+  console.log('🔔 Iniciando recordatorio diario...');
 
-    // Obtener pedidos activos (filtrados por equipo)
-    let query = supabase
-      .from('requests')
-      .select('*')
-      .not('status', 'in', '("completed","cancelled")')
-      .order('deadline', { ascending: true });
+  // Obtener pedidos activos del team
+  const { data: requests, error } = await supabase
+    .from('requests')
+    .select('*')
+    .eq('team_id', TEAM_ID)
+    .not('status', 'in', '("completed","cancelled")')
+    .order('deadline', { ascending: true });
 
-    if (TEAM_ID) {
-      query = query.eq('team_id', TEAM_ID);
-    }
-
-    const { data: requests, error } = await query;
-
-    if (error) {
-      throw new Error(`Error fetching requests: ${error.message}`);
-    }
-
-    if (!requests || requests.length === 0) {
-      console.log('✅ No hay pedidos activos. No se envía recordatorio.');
-      return;
-    }
-
-    // Clasificar pedidos por urgencia
-    const now = new Date();
-    const urgent = requests.filter((r) => {
-      const daysLeft = differenceInDays(parseISO(r.deadline), now);
-      return daysLeft <= 0;
-    });
-
-    const soon = requests.filter((r) => {
-      const daysLeft = differenceInDays(parseISO(r.deadline), now);
-      return daysLeft > 0 && daysLeft <= 2;
-    });
-
-    const thisWeek = requests.filter((r) => {
-      const daysLeft = differenceInDays(parseISO(r.deadline), now);
-      return daysLeft > 2 && daysLeft <= 7;
-    });
-
-    // Obtener nombre del equipo
-    let teamName = 'equipo';
-    if (TEAM_ID) {
-      const { data: teamData } = await supabase
-        .from('teams')
-        .select('name')
-        .eq('id', TEAM_ID)
-        .single();
-      if (teamData) {
-        teamName = teamData.name;
-      }
-    }
-
-    // Construir mensaje
-    let message = `🔔 *Buenos días ${teamName}!*\n\n`;
-    message += `📊 *PEDIDOS ACTIVOS (${requests.length})*\n\n`;
-
-    // Pedidos urgentes (vencen hoy o atrasados)
-    if (urgent.length > 0) {
-      message += `🔴 *URGENTE - Vence HOY o atrasado* (${urgent.length})\n\n`;
-      urgent.forEach((req) => {
-        const emoji = getPriorityEmoji(req.priority);
-        const daysLeft = formatDaysLeft(req.deadline);
-        message += `${emoji} *${req.client.toUpperCase()}* - ${req.description.substring(0, 60)}${req.description.length > 60 ? '...' : ''}\n`;
-        message += `   Solicitante: ${req.requester_name}\n`;
-        message += `   ${daysLeft}\n\n`;
-      });
-    }
-
-    // Pedidos próximos (1-2 días)
-    if (soon.length > 0) {
-      message += `🟡 *PRÓXIMOS 2 DÍAS* (${soon.length})\n\n`;
-      soon.forEach((req) => {
-        const emoji = getPriorityEmoji(req.priority);
-        const daysLeft = formatDaysLeft(req.deadline);
-        message += `${emoji} *${req.client.toUpperCase()}* - ${req.description.substring(0, 60)}${req.description.length > 60 ? '...' : ''}\n`;
-        message += `   ${daysLeft}\n\n`;
-      });
-    }
-
-    // Pedidos de esta semana
-    if (thisWeek.length > 0) {
-      message += `🟢 *ESTA SEMANA* (${thisWeek.length})\n\n`;
-      thisWeek.slice(0, 5).forEach((req) => {
-        const emoji = getPriorityEmoji(req.priority);
-        const daysLeft = formatDaysLeft(req.deadline);
-        message += `${emoji} ${req.client} - ${daysLeft}\n`;
-      });
-      if (thisWeek.length > 5) {
-        message += `... y ${thisWeek.length - 5} más\n`;
-      }
-      message += '\n';
-    }
-
-    message += '---\n';
-    message += '💡 Usa /completar para marcar listos\n';
-    message += '📝 /nuevopedido para agregar más';
-
-    // Enviar mensaje
-    console.log('📤 Enviando recordatorio a Telegram...');
-    await sendTelegramMessage(message);
-    console.log('✅ Recordatorio enviado exitosamente!');
-
-    // Log resumen
-    console.log(`\n📊 Resumen:`);
-    console.log(`   - Pedidos urgentes: ${urgent.length}`);
-    console.log(`   - Próximos 2 días: ${soon.length}`);
-    console.log(`   - Esta semana: ${thisWeek.length}`);
-    console.log(`   - Total activos: ${requests.length}`);
-  } catch (error) {
-    console.error('❌ Error en recordatorio diario:', error);
-    process.exit(1);
+  if (error) {
+    throw new Error(`Error fetching requests: ${error.message}`);
   }
+
+  if (!requests || requests.length === 0) {
+    console.log('✅ No hay pedidos activos. No se envía recordatorio.');
+    return;
+  }
+
+  // Clasificar pedidos por urgencia (en hora Lima)
+  const urgent = requests.filter((r) => daysUntilLimaDate(r.deadline) <= 0);
+  const soon = requests.filter((r) => {
+    const d = daysUntilLimaDate(r.deadline);
+    return d > 0 && d <= 2;
+  });
+  const thisWeek = requests.filter((r) => {
+    const d = daysUntilLimaDate(r.deadline);
+    return d > 2 && d <= 7;
+  });
+
+  // Obtener nombre del equipo
+  let teamName = 'equipo';
+  const { data: teamData } = await supabase
+    .from('teams')
+    .select('name')
+    .eq('id', TEAM_ID)
+    .single();
+  if (teamData) {
+    teamName = teamData.name;
+  }
+
+  // Construir mensaje
+  let message = `🔔 *Buenos días ${escapeMd(teamName)}!*\n\n`;
+  message += `📊 *PEDIDOS ACTIVOS (${requests.length})*\n\n`;
+
+  // Pedidos urgentes (vencen hoy o atrasados)
+  if (urgent.length > 0) {
+    message += `🔴 *URGENTE - Vence HOY o atrasado* (${urgent.length})\n\n`;
+    urgent.forEach((req) => {
+      const emoji = getPriorityEmoji(req.priority);
+      const daysLeft = formatDaysLeft(req.deadline);
+      const desc = req.description.substring(0, 60) + (req.description.length > 60 ? '...' : '');
+      message += `${emoji} *${escapeMd(req.client.toUpperCase())}* - ${escapeMd(desc)}\n`;
+      message += `   Solicitante: ${escapeMd(req.requester_name)}\n`;
+      message += `   ${daysLeft}\n\n`;
+    });
+  }
+
+  // Pedidos próximos (1-2 días)
+  if (soon.length > 0) {
+    message += `🟡 *PRÓXIMOS 2 DÍAS* (${soon.length})\n\n`;
+    soon.forEach((req) => {
+      const emoji = getPriorityEmoji(req.priority);
+      const daysLeft = formatDaysLeft(req.deadline);
+      const desc = req.description.substring(0, 60) + (req.description.length > 60 ? '...' : '');
+      message += `${emoji} *${escapeMd(req.client.toUpperCase())}* - ${escapeMd(desc)}\n`;
+      message += `   ${daysLeft}\n\n`;
+    });
+  }
+
+  // Pedidos de esta semana
+  if (thisWeek.length > 0) {
+    message += `🟢 *ESTA SEMANA* (${thisWeek.length})\n\n`;
+    thisWeek.slice(0, 5).forEach((req) => {
+      const emoji = getPriorityEmoji(req.priority);
+      const daysLeft = formatDaysLeft(req.deadline);
+      message += `${emoji} ${escapeMd(req.client)} - ${daysLeft}\n`;
+    });
+    if (thisWeek.length > 5) {
+      message += `... y ${thisWeek.length - 5} más\n`;
+    }
+    message += '\n';
+  }
+
+  message += '---\n';
+  message += '💡 Usa /completar para marcar listos\n';
+  message += '📝 /nuevopedido para agregar más';
+
+  // Enviar mensaje
+  console.log('📤 Enviando recordatorio a Telegram...');
+  await sendTelegramMessage(message);
+  console.log('✅ Recordatorio enviado exitosamente!');
+
+  // Log resumen
+  console.log(`\n📊 Resumen:`);
+  console.log(`   - Pedidos urgentes: ${urgent.length}`);
+  console.log(`   - Próximos 2 días: ${soon.length}`);
+  console.log(`   - Esta semana: ${thisWeek.length}`);
+  console.log(`   - Total activos: ${requests.length}`);
 }
 
-// Ejecutar script
-main();
+main().catch(async (error) => {
+  console.error('❌ Error en recordatorio diario:', error);
+  await notifyCronFailure('daily-reminder', error);
+  process.exit(1);
+});
