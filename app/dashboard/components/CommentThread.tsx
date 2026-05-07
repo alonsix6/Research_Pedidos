@@ -75,9 +75,7 @@ export default function CommentThread({
                   animate={{ opacity: 1, y: 0 }}
                   className={`p-2 rounded ${isOwn ? 'ml-4' : 'mr-4'}`}
                   style={{
-                    background: isOwn
-                      ? 'rgba(0, 229, 255, 0.08)'
-                      : 'rgba(255,255,255,0.04)',
+                    background: isOwn ? 'rgba(0, 229, 255, 0.08)' : 'rgba(255,255,255,0.04)',
                     border: `1px solid ${isOwn ? 'rgba(0,229,255,0.15)' : 'rgba(255,255,255,0.06)'}`,
                   }}
                 >
@@ -103,7 +101,11 @@ export default function CommentThread({
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="flex gap-2 mt-2 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <form
+        onSubmit={handleSubmit}
+        className="flex gap-2 mt-2 pt-2"
+        style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
+      >
         <input
           type="text"
           value={newComment}

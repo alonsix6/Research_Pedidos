@@ -2,7 +2,14 @@
 
 export type UserRole = 'analyst' | 'assistant' | 'coordinator' | 'practicante';
 
-export type RequestStatus = 'pending' | 'in_progress' | 'in_review' | 'blocked' | 'needs_revision' | 'completed' | 'cancelled';
+export type RequestStatus =
+  | 'pending'
+  | 'in_progress'
+  | 'in_review'
+  | 'blocked'
+  | 'needs_revision'
+  | 'completed'
+  | 'cancelled';
 
 export type RequestPriority = 'low' | 'normal' | 'high' | 'urgent';
 

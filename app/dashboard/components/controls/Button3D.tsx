@@ -74,11 +74,12 @@ export function SquareButton({
         w-10 h-10 flex items-center justify-center
         text-[10px] font-bold uppercase
         rounded-sm
-        ${variant === 'black'
-          ? `bg-gradient-to-b from-[#3A3A3A] to-[#2A2A2A] text-white
+        ${
+          variant === 'black'
+            ? `bg-gradient-to-b from-[#3A3A3A] to-[#2A2A2A] text-white
              shadow-[0_3px_0_#1A1A1A,0_4px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)]
              hover:from-[#444] hover:to-[#333]`
-          : `bg-gradient-to-b from-white to-[#F0F0F0] text-[#1A1A1A]
+            : `bg-gradient-to-b from-white to-[#F0F0F0] text-[#1A1A1A]
              shadow-[0_3px_0_#CCC,0_4px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.8)]
              hover:from-white hover:to-[#F8F8F8]`
         }

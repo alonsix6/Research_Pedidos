@@ -2,7 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { modalOverlayVariants, modalContentVariants, staggerContainerVariants, staggerItemVariants } from '@/lib/animations';
+import {
+  modalOverlayVariants,
+  modalContentVariants,
+  staggerContainerVariants,
+  staggerItemVariants,
+} from '@/lib/animations';
 import { X, ChevronLeft, ChevronRight, Calendar, Check, Search } from 'lucide-react';
 import { Request } from '@/lib/types';
 import { supabase } from '@/lib/supabase';

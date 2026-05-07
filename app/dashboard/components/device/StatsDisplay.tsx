@@ -39,7 +39,7 @@ export default function StatsDisplay({
   };
 
   const selectedMemberName = selectedMember
-    ? teamMembers.find(m => m.id === selectedMember)?.name || 'Miembro'
+    ? teamMembers.find((m) => m.id === selectedMember)?.name || 'Miembro'
     : 'Todo el equipo';
 
   return (
@@ -138,32 +138,57 @@ export default function StatsDisplay({
                 aria-atomic="true"
               >
                 <StatItem label="TOTAL" value={total} color="cyan" description="pedidos totales" />
-                <StatItem label="ACTIVOS" value={active} color="orange" description="pedidos activos" />
-                <StatItem label="LISTOS" value={completed} color="green" description="pedidos completados" />
+                <StatItem
+                  label="ACTIVOS"
+                  value={active}
+                  color="orange"
+                  description="pedidos activos"
+                />
+                <StatItem
+                  label="LISTOS"
+                  value={completed}
+                  color="green"
+                  description="pedidos completados"
+                />
               </div>
 
               <LCDDivider />
 
               {/* Fila inferior - Info adicional */}
               <div className="flex items-center justify-between pt-3">
-                <div className="flex items-center gap-2" role="status" aria-label={`${urgent} pedidos urgentes`}>
+                <div
+                  className="flex items-center gap-2"
+                  role="status"
+                  aria-label={`${urgent} pedidos urgentes`}
+                >
                   <LCDLabel color="orange">URG</LCDLabel>
                   <LCDNumber value={urgent.toString().padStart(2, '0')} color="orange" size="sm" />
                 </div>
 
                 {/* Mostrar filtro activo */}
-                <div className="flex items-center gap-2" role="status" aria-label={`Vista actual: ${selectedMemberName}`}>
+                <div
+                  className="flex items-center gap-2"
+                  role="status"
+                  aria-label={`Vista actual: ${selectedMemberName}`}
+                >
                   <LCDLabel color="cyan">
                     {selectedMember === null
                       ? 'EQUIPO'
-                      : teamMembers.find(m => m.id === selectedMember)?.name.toUpperCase() || ''
-                    }
+                      : teamMembers.find((m) => m.id === selectedMember)?.name.toUpperCase() || ''}
                   </LCDLabel>
                 </div>
 
-                <div className="flex items-center gap-2" role="status" aria-label={`${teamMembers.length} miembros del equipo`}>
+                <div
+                  className="flex items-center gap-2"
+                  role="status"
+                  aria-label={`${teamMembers.length} miembros del equipo`}
+                >
                   <LCDLabel color="cyan">TEAM</LCDLabel>
-                  <LCDNumber value={teamMembers.length.toString().padStart(2, '0')} color="cyan" size="sm" />
+                  <LCDNumber
+                    value={teamMembers.length.toString().padStart(2, '0')}
+                    color="cyan"
+                    size="sm"
+                  />
                 </div>
               </div>
             </motion.div>
@@ -178,7 +203,7 @@ function StatItem({
   label,
   value,
   color,
-  description
+  description,
 }: {
   label: string;
   value: number;
@@ -186,15 +211,12 @@ function StatItem({
   description?: string;
 }) {
   return (
-    <div className="flex flex-col items-center" aria-label={`${value} ${description || label.toLowerCase()}`}>
-      <LCDLabel color="white">
-        {label}
-      </LCDLabel>
-      <LCDNumber
-        value={value.toString().padStart(2, '0')}
-        color={color}
-        size="lg"
-      />
+    <div
+      className="flex flex-col items-center"
+      aria-label={`${value} ${description || label.toLowerCase()}`}
+    >
+      <LCDLabel color="white">{label}</LCDLabel>
+      <LCDNumber value={value.toString().padStart(2, '0')} color={color} size="lg" />
     </div>
   );
 }
@@ -205,7 +227,7 @@ function TeamButton({
   fullName,
   active = false,
   onClick,
-  count
+  count,
 }: {
   label: React.ReactNode;
   name: string;
@@ -227,9 +249,7 @@ function TeamButton({
       <div
         className="w-10 h-10 flex items-center justify-center rounded-sm text-[11px] font-bold transition-all"
         style={{
-          background: active
-            ? 'linear-gradient(180deg, #FF5722 0%, #FF4500 100%)'
-            : '#2A2A2A',
+          background: active ? 'linear-gradient(180deg, #FF5722 0%, #FF4500 100%)' : '#2A2A2A',
           color: active ? 'white' : '#949494',
           boxShadow: active
             ? '0 0 10px rgba(255,69,0,0.6), inset 0 1px 0 rgba(255,255,255,0.2)'

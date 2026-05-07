@@ -29,6 +29,7 @@ SELECT id, name, slug FROM teams WHERE slug = 'slug-del-equipo';
 Guardar el UUID — lo vas a necesitar en todos los pasos siguientes.
 
 **Ejemplo:**
+
 ```
 id: f8a1b2c3-d4e5-6789-abcd-ef0123456789
 name: Equipo Creativo
@@ -40,6 +41,7 @@ slug: equipo-creativo
 ## Paso 2: Insertar usuarios del nuevo equipo
 
 Cada miembro necesita su `telegram_id`. Para obtenerlo:
+
 1. El usuario debe enviar un mensaje a [@userinfobot](https://t.me/userinfobot) en Telegram
 2. El bot le responde con su ID numérico
 
@@ -133,15 +135,16 @@ Guardar el resultado → `TELEGRAM_WEBHOOK_SECRET`
 
 El bot funciona automáticamente con las variables de entorno. No necesitas tocar código. Lo que debes saber:
 
-| Aspecto | Comportamiento | Dónde se configura |
-|---------|---------------|-------------------|
-| **Quién puede usar el bot** | Solo usuarios de la tabla `users` con el `team_id` del equipo. Si alguien no registrado escribe, recibe: "No estás autorizado" | Tabla `users` en Supabase |
-| **Quién aparece para asignar pedidos** | Solo miembros del equipo (filtrado por `team_id`) | Tabla `users` en Supabase |
-| **Qué pedidos muestra /ver** | Solo pedidos del equipo (filtrado por `team_id`) | Variable `TEAM_ID` en Netlify |
-| **A qué grupo envía recordatorios** | Al grupo configurado en `TELEGRAM_CHAT_ID` | Variable en Netlify + GitHub Secrets |
-| **Nombre/username del bot** | Se configura en @BotFather, no en el código | @BotFather en Telegram |
+| Aspecto                                | Comportamiento                                                                                                                 | Dónde se configura                   |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------ |
+| **Quién puede usar el bot**            | Solo usuarios de la tabla `users` con el `team_id` del equipo. Si alguien no registrado escribe, recibe: "No estás autorizado" | Tabla `users` en Supabase            |
+| **Quién aparece para asignar pedidos** | Solo miembros del equipo (filtrado por `team_id`)                                                                              | Tabla `users` en Supabase            |
+| **Qué pedidos muestra /ver**           | Solo pedidos del equipo (filtrado por `team_id`)                                                                               | Variable `TEAM_ID` en Netlify        |
+| **A qué grupo envía recordatorios**    | Al grupo configurado en `TELEGRAM_CHAT_ID`                                                                                     | Variable en Netlify + GitHub Secrets |
+| **Nombre/username del bot**            | Se configura en @BotFather, no en el código                                                                                    | @BotFather en Telegram               |
 
 **Para agregar un usuario nuevo al bot después del setup:**
+
 ```sql
 INSERT INTO users (telegram_id, telegram_username, name, role, team_id)
 VALUES ('TELEGRAM_ID', 'username_o_null', 'Nombre', 'rol', 'UUID-EQUIPO')
@@ -150,34 +153,36 @@ ON CONFLICT (telegram_id) DO UPDATE SET
   role = EXCLUDED.role,
   team_id = EXCLUDED.team_id;
 ```
+
 No hay que reiniciar nada. El cambio es inmediato.
 
 **Para quitar un usuario del bot:**
+
 ```sql
 DELETE FROM users WHERE telegram_id = 'TELEGRAM_ID' AND team_id = 'UUID-EQUIPO';
 ```
 
 ### En el Dashboard (no requiere cambios de código)
 
-| Aspecto | Comportamiento | Dónde se configura |
-|---------|---------------|-------------------|
-| **Nombre del equipo en el título** | Se lee dinámicamente de la tabla `teams` | Columna `name` en tabla `teams` |
-| **Miembros en el dropdown de asignar** | Solo los del equipo | Tabla `users` filtrada por `team_id` |
-| **Pedidos que muestra** | Solo los del equipo | Variable `NEXT_PUBLIC_TEAM_ID` |
-| **Realtime (actualizaciones en vivo)** | Solo recibe cambios del equipo | Filtro automático por `team_id` |
-| **Historial de completados** | Solo del equipo | Filtrado por `team_id` |
+| Aspecto                                | Comportamiento                           | Dónde se configura                   |
+| -------------------------------------- | ---------------------------------------- | ------------------------------------ |
+| **Nombre del equipo en el título**     | Se lee dinámicamente de la tabla `teams` | Columna `name` en tabla `teams`      |
+| **Miembros en el dropdown de asignar** | Solo los del equipo                      | Tabla `users` filtrada por `team_id` |
+| **Pedidos que muestra**                | Solo los del equipo                      | Variable `NEXT_PUBLIC_TEAM_ID`       |
+| **Realtime (actualizaciones en vivo)** | Solo recibe cambios del equipo           | Filtro automático por `team_id`      |
+| **Historial de completados**           | Solo del equipo                          | Filtrado por `team_id`               |
 
 ### Si quieres personalizar la apariencia
 
 Estos cambios sí requieren modificar código (por eso conviene un fork):
 
-| Qué cambiar | Archivo |
-|-------------|---------|
-| Colores / tema | `app/globals.css` (variables `--te-cyan`, `--te-orange`, etc.) |
-| Logo o título fijo | `app/layout.tsx` (metadata) |
-| Landing page | `app/page.tsx` |
-| Diseño de las tarjetas | `app/dashboard/components/PedidoPad.tsx` |
-| Roles disponibles | Tabla `users` CHECK constraint + `lib/types.ts` (`UserRole`) |
+| Qué cambiar            | Archivo                                                        |
+| ---------------------- | -------------------------------------------------------------- |
+| Colores / tema         | `app/globals.css` (variables `--te-cyan`, `--te-orange`, etc.) |
+| Logo o título fijo     | `app/layout.tsx` (metadata)                                    |
+| Landing page           | `app/page.tsx`                                                 |
+| Diseño de las tarjetas | `app/dashboard/components/PedidoPad.tsx`                       |
+| Roles disponibles      | Tabla `users` CHECK constraint + `lib/types.ts` (`UserRole`)   |
 
 ---
 
@@ -209,16 +214,16 @@ Estos cambios sí requieren modificar código (por eso conviene un fork):
 
 En **Site settings > Environment variables**, agregar:
 
-| Variable | Valor | Notas |
-|----------|-------|-------|
-| `NEXT_PUBLIC_SUPABASE_URL` | `https://xxxxx.supabase.co` | **Mismo** que el equipo original |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...` | **Mismo** que el equipo original |
-| `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` | **Mismo** que el equipo original |
-| `NEXT_PUBLIC_TEAM_ID` | `f8a1b2c3-d4e5-...` | UUID del **nuevo** equipo (Paso 1) |
-| `TEAM_ID` | `f8a1b2c3-d4e5-...` | **Mismo UUID** que `NEXT_PUBLIC_TEAM_ID` |
-| `TELEGRAM_BOT_TOKEN` | `123456:ABC-DEF...` | Token del **nuevo** bot (Paso 3) |
-| `TELEGRAM_CHAT_ID` | `-100123456789` | Chat ID del **nuevo** grupo (Paso 3) |
-| `TELEGRAM_WEBHOOK_SECRET` | `a1b2c3d4...` | Secret **nuevo** (Paso 3) |
+| Variable                        | Valor                       | Notas                                    |
+| ------------------------------- | --------------------------- | ---------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | `https://xxxxx.supabase.co` | **Mismo** que el equipo original         |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...`                    | **Mismo** que el equipo original         |
+| `SUPABASE_SERVICE_ROLE_KEY`     | `eyJ...`                    | **Mismo** que el equipo original         |
+| `NEXT_PUBLIC_TEAM_ID`           | `f8a1b2c3-d4e5-...`         | UUID del **nuevo** equipo (Paso 1)       |
+| `TEAM_ID`                       | `f8a1b2c3-d4e5-...`         | **Mismo UUID** que `NEXT_PUBLIC_TEAM_ID` |
+| `TELEGRAM_BOT_TOKEN`            | `123456:ABC-DEF...`         | Token del **nuevo** bot (Paso 3)         |
+| `TELEGRAM_CHAT_ID`              | `-100123456789`             | Chat ID del **nuevo** grupo (Paso 3)     |
+| `TELEGRAM_WEBHOOK_SECRET`       | `a1b2c3d4...`               | Secret **nuevo** (Paso 3)                |
 
 > **Importante:** Las 3 variables de Supabase son las mismas para todos los equipos. Lo que cambia es `TEAM_ID`, el bot y el grupo.
 
@@ -250,6 +255,7 @@ curl -s "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo" | pyth
 ```
 
 Deberías ver:
+
 ```json
 {
   "ok": true,
@@ -267,15 +273,15 @@ Deberías ver:
 
 En el fork en GitHub, ir a **Settings > Secrets and variables > Actions** y agregar:
 
-| Secret | Valor |
-|--------|-------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Mismo que siempre |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Mismo que siempre |
-| `TELEGRAM_BOT_TOKEN` | Token del **nuevo** bot |
-| `TELEGRAM_CHAT_ID` | Chat ID del **nuevo** grupo |
-| `TELEGRAM_WEBHOOK_SECRET` | Secret del **nuevo** webhook |
-| `TEAM_ID` | UUID del **nuevo** equipo |
-| `SITE_URL` | URL del **nuevo** sitio Netlify |
+| Secret                          | Valor                           |
+| ------------------------------- | ------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Mismo que siempre               |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Mismo que siempre               |
+| `TELEGRAM_BOT_TOKEN`            | Token del **nuevo** bot         |
+| `TELEGRAM_CHAT_ID`              | Chat ID del **nuevo** grupo     |
+| `TELEGRAM_WEBHOOK_SECRET`       | Secret del **nuevo** webhook    |
+| `TEAM_ID`                       | UUID del **nuevo** equipo       |
+| `SITE_URL`                      | URL del **nuevo** sitio Netlify |
 
 ### Verificar que los workflows están habilitados
 
@@ -295,18 +301,21 @@ En cada workflow, click en **Run workflow** para verificar que funciona.
 ## Paso 8: Probar todo
 
 ### Dashboard
+
 1. Abrir `https://TU-SITIO.netlify.app/dashboard`
 2. Verificar que muestra el nombre del equipo en el título
 3. Crear un pedido de prueba
 4. Verificar que aparece en tiempo real
 
 ### Bot
+
 1. En el grupo de Telegram, enviar `/ayuda`
 2. El bot debe responder con la lista de comandos
 3. Probar `/nuevopedido` para crear un pedido desde Telegram
 4. Verificar que aparece en el dashboard
 
 ### Aislamiento
+
 1. El dashboard del nuevo equipo **NO** debe mostrar pedidos de otros equipos
 2. El bot del nuevo equipo **NO** debe listar usuarios de otros equipos
 3. Verificar con `/ver` que solo muestra pedidos del equipo
@@ -315,16 +324,16 @@ En cada workflow, click en **Run workflow** para verificar que funciona.
 
 ## Resumen: Qué se comparte y qué no
 
-| Recurso | ¿Compartido entre equipos? |
-|---------|:---:|
-| Proyecto Supabase (URL + keys) | ✅ Compartido |
-| Base de datos (tablas) | ✅ Compartido (aislado por `team_id`) |
-| Código fuente | ✅ Compartido (mismo repo o fork) |
-| `TEAM_ID` | ❌ Único por equipo |
-| Bot de Telegram | ❌ Uno por equipo |
-| Grupo de Telegram | ❌ Uno por equipo |
-| Site de Netlify | ❌ Uno por equipo |
-| GitHub Actions secrets | ❌ Uno por repo/fork |
+| Recurso                        |      ¿Compartido entre equipos?       |
+| ------------------------------ | :-----------------------------------: |
+| Proyecto Supabase (URL + keys) |             ✅ Compartido             |
+| Base de datos (tablas)         | ✅ Compartido (aislado por `team_id`) |
+| Código fuente                  |   ✅ Compartido (mismo repo o fork)   |
+| `TEAM_ID`                      |          ❌ Único por equipo          |
+| Bot de Telegram                |           ❌ Uno por equipo           |
+| Grupo de Telegram              |           ❌ Uno por equipo           |
+| Site de Netlify                |           ❌ Uno por equipo           |
+| GitHub Actions secrets         |         ❌ Uno por repo/fork          |
 
 ---
 
@@ -355,22 +364,27 @@ En cada workflow, click en **Run workflow** para verificar que funciona.
 ## Troubleshooting
 
 ### El dashboard no muestra datos
+
 - Verificar `NEXT_PUBLIC_TEAM_ID` en Netlify → debe ser el UUID exacto del equipo
 - Verificar que hay usuarios y pedidos con ese `team_id` en Supabase
 
 ### El bot no responde
+
 - Verificar webhook: `curl -s "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"`
 - Verificar que `TEAM_ID`, `SUPABASE_SERVICE_ROLE_KEY` están en las env vars de Netlify
 - Verificar que los usuarios del grupo están en la tabla `users` con el `team_id` correcto
 
 ### Veo pedidos de otro equipo
+
 - `NEXT_PUBLIC_TEAM_ID` o `TEAM_ID` están mal configurados o vacíos
 - Cada deploy debe tener su propio UUID de equipo
 
 ### El daily reminder no llega
+
 - Verificar que `TEAM_ID` está en los secrets de GitHub Actions
 - Ejecutar el workflow manualmente para ver errores en los logs
 
 ### Error al hacer deploy en Netlify
+
 - Verificar que las 3 variables de Supabase están configuradas
 - Verificar que `NEXT_PUBLIC_TEAM_ID` no tiene espacios extra

@@ -82,9 +82,7 @@ export function getActivityDescription(action: ActivityAction, details: Activity
     case 'status_changed':
       return `Estado cambiado de ${getStatusLabel(details.from_status)} a ${getStatusLabel(details.to_status)}`;
     case 'assigned':
-      return details.new_assigned
-        ? `Asignado a ${details.new_assigned}`
-        : 'Asignación removida';
+      return details.new_assigned ? `Asignado a ${details.new_assigned}` : 'Asignación removida';
     case 'deadline_changed':
       return `Fecha de entrega cambiada`;
     case 'edited':
@@ -98,9 +96,7 @@ export function getActivityDescription(action: ActivityAction, details: Activity
     case 'reopened':
       return 'Pedido reabierto';
     case 'blocked':
-      return details.blocked_reason
-        ? `Bloqueado: ${details.blocked_reason}`
-        : 'Pedido bloqueado';
+      return details.blocked_reason ? `Bloqueado: ${details.blocked_reason}` : 'Pedido bloqueado';
     case 'unblocked':
       return 'Pedido desbloqueado';
     default:

@@ -3,16 +3,10 @@
 import { SettingsProvider } from '@/lib/hooks/useSettings';
 import { ToastProvider } from './components/Toast';
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <SettingsProvider>
-      <ToastProvider>
-        {children}
-      </ToastProvider>
+      <ToastProvider>{children}</ToastProvider>
     </SettingsProvider>
   );
 }

@@ -22,12 +22,12 @@ const SIZES = [
   { size: 128, name: 'icon-128.png' },
   { size: 144, name: 'icon-144.png' },
   { size: 152, name: 'apple-touch-icon-152.png' },
-  { size: 167, name: 'apple-touch-icon-167.png' },  // iPad Pro
-  { size: 180, name: 'apple-touch-icon.png' },      // iPhone retina
-  { size: 192, name: 'icon-192.png' },              // Android/PWA
+  { size: 167, name: 'apple-touch-icon-167.png' }, // iPad Pro
+  { size: 180, name: 'apple-touch-icon.png' }, // iPhone retina
+  { size: 192, name: 'icon-192.png' }, // Android/PWA
   { size: 256, name: 'icon-256.png' },
   { size: 384, name: 'icon-384.png' },
-  { size: 512, name: 'icon-512.png' },              // PWA splash
+  { size: 512, name: 'icon-512.png' }, // PWA splash
 ];
 
 async function generateIcons() {
@@ -40,10 +40,7 @@ async function generateIcons() {
     const outputPath = path.join(ICONS_DIR, name);
 
     try {
-      await sharp(svgBuffer)
-        .resize(size, size)
-        .png()
-        .toFile(outputPath);
+      await sharp(svgBuffer).resize(size, size).png().toFile(outputPath);
 
       console.log('Generated: ' + name + ' (' + size + 'x' + size + ')');
     } catch (err) {

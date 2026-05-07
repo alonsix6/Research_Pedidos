@@ -30,6 +30,7 @@ TELEGRAM_CHAT_ID=<tu-telegram-chat-id>
 ```
 
 **Nota:** Obtén estos valores de:
+
 - Supabase: Project Settings → API → Project URL y API Keys
 - Telegram: @BotFather (bot token) y chat ID del grupo
 
@@ -50,6 +51,7 @@ curl -X POST https://api.telegram.org/bot<TU_BOT_TOKEN>/setWebhook \
 ```
 
 Reemplazar:
+
 - `<TU_BOT_TOKEN>` con tu token de Telegram Bot
 - `TU-SITIO` con tu URL de Netlify
 

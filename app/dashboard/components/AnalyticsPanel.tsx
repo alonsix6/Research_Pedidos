@@ -51,13 +51,15 @@ export default function AnalyticsPanel({ requests, teamMembers }: AnalyticsPanel
       }
     });
 
-    return Object.entries(counts).map(([id, count]) => {
-      const member = teamMembers.find((m) => m.id === id);
-      return {
-        name: member?.name || (id === 'unassigned' ? 'Sin asignar' : 'Usuario'),
-        count,
-      };
-    }).sort((a, b) => b.count - a.count);
+    return Object.entries(counts)
+      .map(([id, count]) => {
+        const member = teamMembers.find((m) => m.id === id);
+        return {
+          name: member?.name || (id === 'unassigned' ? 'Sin asignar' : 'Usuario'),
+          count,
+        };
+      })
+      .sort((a, b) => b.count - a.count);
   }, [requests, teamMembers]);
 
   // KPI 3: Time in each status (average days) - using activity_log would be ideal,
@@ -73,9 +75,7 @@ export default function AnalyticsPanel({ requests, teamMembers }: AnalyticsPanel
       const changedAt = r.status_changed_at || r.updated_at || r.created_at;
       const daysInStatus = Math.max(
         0,
-        Math.floor(
-          (Date.now() - new Date(changedAt).getTime()) / (1000 * 60 * 60 * 24)
-        )
+        Math.floor((Date.now() - new Date(changedAt).getTime()) / (1000 * 60 * 60 * 24))
       );
 
       if (!durations[r.status]) {
@@ -109,14 +109,8 @@ export default function AnalyticsPanel({ requests, teamMembers }: AnalyticsPanel
   };
 
   return (
-    <motion.div
-      className="lcd-screen p-4"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-    >
-      <h3 className="text-[10px] uppercase tracking-wider text-[#666] mb-4 font-bold">
-        Analytics
-      </h3>
+    <motion.div className="lcd-screen p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <h3 className="text-[10px] uppercase tracking-wider text-[#666] mb-4 font-bold">Analytics</h3>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Status Distribution */}
@@ -149,7 +143,9 @@ export default function AnalyticsPanel({ requests, teamMembers }: AnalyticsPanel
             {statusDistribution.map((item) => (
               <div key={item.name} className="flex items-center gap-1">
                 <div className="w-2 h-2 rounded-full" style={{ background: item.color }} />
-                <span className="text-[8px] text-[#999]">{item.name} ({item.value})</span>
+                <span className="text-[8px] text-[#999]">
+                  {item.name} ({item.value})
+                </span>
               </div>
             ))}
           </div>

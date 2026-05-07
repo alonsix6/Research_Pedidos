@@ -59,13 +59,7 @@ export function useToast() {
   return context;
 }
 
-function ToastItem({
-  toast,
-  onDismiss,
-}: {
-  toast: Toast;
-  onDismiss: (id: string) => void;
-}) {
+function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
   const icons = {
     success: <Check size={16} />,
     error: <AlertCircle size={16} />,
@@ -113,17 +107,12 @@ function ToastItem({
       }}
     >
       <div className="flex items-start gap-3 p-3">
-        <div
-          className="flex-shrink-0 mt-0.5"
-          style={{ color: style.icon }}
-        >
+        <div className="flex-shrink-0 mt-0.5" style={{ color: style.icon }}>
           {icons[toast.type]}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold text-white">{toast.title}</p>
-          {toast.message && (
-            <p className="text-[10px] text-gray-400 mt-0.5">{toast.message}</p>
-          )}
+          {toast.message && <p className="text-[10px] text-gray-400 mt-0.5">{toast.message}</p>}
         </div>
         <button
           onClick={() => onDismiss(toast.id)}

@@ -72,10 +72,7 @@ export default function KanbanBoard({
                 }}
               >
                 <div className="flex items-center gap-2">
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ background: config.color }}
-                  />
+                  <div className="w-2 h-2 rounded-full" style={{ background: config.color }} />
                   <span
                     className="text-[10px] font-bold uppercase tracking-wider"
                     style={{ color: config.textColor }}
@@ -111,9 +108,7 @@ export default function KanbanBoard({
 
                 {items.length === 0 && (
                   <div className="text-center py-6">
-                    <p className="text-[9px] text-[#555] uppercase tracking-wider">
-                      Sin pedidos
-                    </p>
+                    <p className="text-[9px] text-[#555] uppercase tracking-wider">Sin pedidos</p>
                   </div>
                 )}
               </div>
@@ -142,12 +137,13 @@ function KanbanCard({
   const isUrgent = daysLeft.includes('Atrasado') || daysLeft.includes('HOY');
   const assignedName = teamMembers.find((m) => m.id === request.assigned_to)?.name;
 
-  const priorityColor = {
-    urgent: '#E53935',
-    high: '#FFD600',
-    normal: '#00C853',
-    low: '#666666',
-  }[request.priority] || '#666666';
+  const priorityColor =
+    {
+      urgent: '#E53935',
+      high: '#FFD600',
+      normal: '#00C853',
+      low: '#666666',
+    }[request.priority] || '#666666';
 
   return (
     <motion.div
@@ -182,16 +178,11 @@ function KanbanCard({
 
       {/* Footer */}
       <div className="flex items-center justify-between">
-        <span
-          className="text-[8px] font-medium"
-          style={{ color: isUrgent ? '#E53935' : '#666' }}
-        >
+        <span className="text-[8px] font-medium" style={{ color: isUrgent ? '#E53935' : '#666' }}>
           {daysLeft}
         </span>
         {assignedName && (
-          <span className="text-[8px] text-[#666] truncate max-w-[60px]">
-            {assignedName}
-          </span>
+          <span className="text-[8px] text-[#666] truncate max-w-[60px]">{assignedName}</span>
         )}
       </div>
 

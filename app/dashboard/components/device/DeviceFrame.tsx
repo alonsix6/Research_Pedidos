@@ -24,7 +24,8 @@ export default function DeviceFrame({ children }: DeviceFrameProps) {
         <div
           className="h-1"
           style={{
-            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)',
+            background:
+              'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)',
           }}
         />
 
@@ -34,7 +35,8 @@ export default function DeviceFrame({ children }: DeviceFrameProps) {
         <div
           className="h-1"
           style={{
-            background: 'linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.2) 50%, transparent 100%)',
+            background:
+              'linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.2) 50%, transparent 100%)',
           }}
         />
       </div>

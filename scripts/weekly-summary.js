@@ -10,6 +10,7 @@ const { es } = require('date-fns/locale');
 const { daysUntilLimaDate } = require('./_dateUtils');
 const { escapeMd } = require('./_telegramMarkdown');
 const { notifyCronFailure } = require('./_notify');
+// Nota: weekly-summary.js no usa getPriorityEmoji directamente, solo formatDaysLeft inline (con caso especial "Vence el lunes").
 
 // Variables de entorno (configuradas en GitHub Secrets)
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -32,14 +33,14 @@ const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 
 // Frases motivacionales para el fin de semana
 const WEEKEND_PHRASES = [
-  "¡Excelente trabajo esta semana! Disfruten el fin de semana. 🎉",
-  "¡Semana productiva! Es hora de recargar energías. 💪",
-  "¡Buen cierre de semana! A descansar y volver con todo el lunes. 🚀",
-  "¡Feliz fin de semana, equipo! Se lo han ganado. ⭐",
-  "¡Otra semana conquistada! Disfruten el descanso. 🌟",
-  "¡Gran esfuerzo esta semana! El fin de semana es su recompensa. 🏆",
-  "¡Cerramos bien! Ahora a disfrutar el merecido descanso. 😎",
-  "¡Semana completada con éxito! A recargar pilas. 🔋",
+  '¡Excelente trabajo esta semana! Disfruten el fin de semana. 🎉',
+  '¡Semana productiva! Es hora de recargar energías. 💪',
+  '¡Buen cierre de semana! A descansar y volver con todo el lunes. 🚀',
+  '¡Feliz fin de semana, equipo! Se lo han ganado. ⭐',
+  '¡Otra semana conquistada! Disfruten el descanso. 🌟',
+  '¡Gran esfuerzo esta semana! El fin de semana es su recompensa. 🏆',
+  '¡Cerramos bien! Ahora a disfrutar el merecido descanso. 😎',
+  '¡Semana completada con éxito! A recargar pilas. 🔋',
 ];
 
 function getRandomWeekendPhrase() {
@@ -109,15 +110,15 @@ async function main() {
   }
 
   // Clasificar pendientes (en hora Lima)
-  const overdue = pendingRequests.filter(r => daysUntilLimaDate(r.deadline) < 0);
-  const dueNextWeek = pendingRequests.filter(r => {
+  const overdue = pendingRequests.filter((r) => daysUntilLimaDate(r.deadline) < 0);
+  const dueNextWeek = pendingRequests.filter((r) => {
     const d = daysUntilLimaDate(r.deadline);
     return d >= 0 && d <= 7;
   });
-  const dueLater = pendingRequests.filter(r => daysUntilLimaDate(r.deadline) > 7);
+  const dueLater = pendingRequests.filter((r) => daysUntilLimaDate(r.deadline) > 7);
 
   // Construir mensaje
-  const weekRange = `${format(weekStart, 'd', { locale: es })} - ${format(weekEnd, 'd \'de\' MMMM', { locale: es })}`;
+  const weekRange = `${format(weekStart, 'd', { locale: es })} - ${format(weekEnd, "d 'de' MMMM", { locale: es })}`;
 
   let message = `📊 *RESUMEN SEMANAL*\n`;
   message += `Semana del ${weekRange}\n\n`;
@@ -127,7 +128,7 @@ async function main() {
   if (completedThisWeek.length === 0) {
     message += `   No se completaron pedidos esta semana.\n\n`;
   } else {
-    completedThisWeek.slice(0, 8).forEach(req => {
+    completedThisWeek.slice(0, 8).forEach((req) => {
       const desc = req.description.substring(0, 40) + (req.description.length > 40 ? '...' : '');
       message += `   • ${escapeMd(req.client)} - ${escapeMd(desc)}\n`;
     });
@@ -143,7 +144,7 @@ async function main() {
   // Atrasados
   if (overdue.length > 0) {
     message += `🔴 *Atrasados* (${overdue.length})\n`;
-    overdue.forEach(req => {
+    overdue.forEach((req) => {
       message += `   • ${escapeMd(req.client)} - ${formatDaysLeft(req.deadline)}\n`;
     });
     message += '\n';
@@ -152,7 +153,7 @@ async function main() {
   // Para la próxima semana
   if (dueNextWeek.length > 0) {
     message += `🟡 *Próxima semana* (${dueNextWeek.length})\n`;
-    dueNextWeek.slice(0, 5).forEach(req => {
+    dueNextWeek.slice(0, 5).forEach((req) => {
       message += `   • ${escapeMd(req.client)} - ${formatDaysLeft(req.deadline)}\n`;
     });
     if (dueNextWeek.length > 5) {
@@ -164,7 +165,7 @@ async function main() {
   // Más adelante
   if (dueLater.length > 0) {
     message += `🟢 *Más adelante* (${dueLater.length})\n`;
-    dueLater.slice(0, 3).forEach(req => {
+    dueLater.slice(0, 3).forEach((req) => {
       message += `   • ${escapeMd(req.client)} - ${formatDaysLeft(req.deadline)}\n`;
     });
     if (dueLater.length > 3) {

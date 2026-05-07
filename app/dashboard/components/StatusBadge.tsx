@@ -45,16 +45,8 @@ export default function StatusBadge({ status, size = 'md', showLabel = true }: S
           background: config.color,
           boxShadow: `0 0 4px ${config.color}80`,
         }}
-        animate={
-          config.animate
-            ? { opacity: [0.6, 1, 0.6], scale: [1, 1.1, 1] }
-            : {}
-        }
-        transition={
-          config.animate
-            ? { duration: 1.5, repeat: Infinity, ease: 'easeInOut' }
-            : {}
-        }
+        animate={config.animate ? { opacity: [0.6, 1, 0.6], scale: [1, 1.1, 1] } : {}}
+        transition={config.animate ? { duration: 1.5, repeat: Infinity, ease: 'easeInOut' } : {}}
       />
 
       {showLabel && (
@@ -82,16 +74,8 @@ export function StatusLED({ status }: { status: RequestStatus }) {
         background: config.color,
         boxShadow: `0 0 6px ${config.color}, 0 0 10px ${config.color}50`,
       }}
-      animate={
-        config.animate
-          ? { opacity: [0.7, 1, 0.7], scale: [1, 1.1, 1] }
-          : {}
-      }
-      transition={
-        config.animate
-          ? { duration: 1.5, repeat: Infinity, ease: 'easeInOut' }
-          : {}
-      }
+      animate={config.animate ? { opacity: [0.7, 1, 0.7], scale: [1, 1.1, 1] } : {}}
+      transition={config.animate ? { duration: 1.5, repeat: Infinity, ease: 'easeInOut' } : {}}
       role="status"
       aria-label={`Estado: ${config.label}`}
     />

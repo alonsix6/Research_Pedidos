@@ -11,9 +11,11 @@ El sistema de gestión de pedidos está completamente implementado y listo para 
 ### 📝 Comandos Principales
 
 #### `/nuevopedido` - ⭐ NUEVO ⭐
+
 Flujo conversacional completo para crear pedidos. El bot te guía paso a paso:
 
 **Flujo:**
+
 1. **Cliente**: ¿Para qué cliente/cuenta?
    - Responde: "San Fernando", "Mall Aventura", etc.
 
@@ -41,6 +43,7 @@ Flujo conversacional completo para crear pedidos. El bot te guía paso a paso:
 
 **Confirmación:**
 El bot crea el pedido y muestra un resumen completo con:
+
 - Cliente y descripción
 - Solicitante y rol
 - Deadline formateado
@@ -48,6 +51,7 @@ El bot crea el pedido y muestra un resumen completo con:
 - Prioridad calculada automáticamente (🔴 urgente, 🟡 high, 🟢 normal)
 
 **Ejemplo de uso:**
+
 ```
 Usuario: /nuevopedido
 Bot: 📝 Nuevo pedido para el equipo
@@ -87,9 +91,11 @@ Bot: ✅ Pedido creado!
 ```
 
 #### `/completar` - ⭐ NUEVO ⭐
+
 Marcar pedidos como completados.
 
 Muestra lista numerada de pedidos activos con:
+
 - Emoji de prioridad
 - Cliente
 - Descripción resumida
@@ -107,6 +113,7 @@ O usa /cancelar para cancelar.
 ```
 
 #### `/cancelar` - ⭐ NUEVO ⭐
+
 Cancela cualquier operación en curso (crear pedido, completar, etc.)
 
 ```
@@ -115,25 +122,31 @@ Bot: ❌ Pedido cancelado. Usa /nuevopedido cuando quieras crear uno nuevo.
 ```
 
 #### `/ver`
+
 Lista todos los pedidos activos ordenados por deadline.
 
 #### `/mios`
+
 Muestra solo los pedidos asignados a ti.
 
 ### 📅 Comandos de Filtros
 
 #### `/hoy`
+
 Pedidos que vencen HOY.
 
 #### `/semana`
+
 Pedidos que vencen en los próximos 7 días.
 
 #### `/urgente`
+
 Pedidos urgentes (vencen en menos de 2 días o ya vencieron).
 
 ### ℹ️ Información
 
 #### `/ayuda` o `/help`
+
 Muestra todos los comandos disponibles con descripción.
 
 ---
@@ -190,6 +203,7 @@ El recordatorio se ejecuta vía **GitHub Actions**:
 Ir a: Settings → Secrets and variables → Actions → New repository secret
 
 Agregar:
+
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `TELEGRAM_BOT_TOKEN`
@@ -208,6 +222,7 @@ Agregar:
 ### Funcionalidades
 
 ✅ **Implementadas:**
+
 - Vista de todos los pedidos clasificados por urgencia
 - Stats bar (total, activos, completados)
 - Clasificación automática:
@@ -219,6 +234,7 @@ Agregar:
 - Responsive
 
 ⏳ **Pendientes (opcionales):**
+
 - Modal para crear nuevo pedido desde web
 - Editar pedidos
 - Eliminar pedidos
@@ -276,6 +292,7 @@ VALUES ('TELEGRAM_ID', 'username', 'Nombre', 'role');
 ### Variables de Entorno
 
 **Netlify (ya configuradas):**
+
 - `NEXT_PUBLIC_SUPABASE_URL` - URL del proyecto
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Key pública (OK exponerla)
 - `SUPABASE_SERVICE_ROLE_KEY` - Key privada (solo server-side)
@@ -292,19 +309,23 @@ Las mismas 4 variables de arriba.
 ### Tablas
 
 **users**
+
 - Usuarios del equipo autorizados
 - telegram_id, telegram_username, name, role
 
 **requests**
+
 - Pedidos del equipo
 - client, description, requester_name, requester_role
 - assigned_to, deadline, status, priority
 - created_by, created_at, completed_at
 
 **activity_log**
+
 - Historial de cambios (para futuras features)
 
 **conversation_state** - ⭐ NUEVO ⭐
+
 - Estados del flujo conversacional
 - chat_id, user_id, step, data
 - Se limpia automáticamente al completar el flujo
@@ -316,16 +337,19 @@ Las mismas 4 variables de arriba.
 ### Status Actual
 
 ✅ **Bot**: Funcionando en producción
+
 - Webhook configurado
 - Todos los comandos operativos
 - Flujo conversacional probado
 
 ✅ **Dashboard**: Desplegado en Netlify
+
 - https://research-pedidos.netlify.app/dashboard
 - Build exitoso
 - Conectado a Supabase
 
 ⏰ **Recordatorios**: Configurado
+
 - GitHub Actions workflow activo
 - Ejecutar manualmente para probar
 - Automático de Lun-Vie 9AM Lima
@@ -333,16 +357,19 @@ Las mismas 4 variables de arriba.
 ### Testing
 
 **Bot de Telegram:**
+
 1. `/ayuda` - Ver comandos
 2. `/nuevopedido` - Crear un pedido de prueba
 3. `/ver` - Verificar que aparece
 4. `/completar` - Marcarlo completo
 
 **Recordatorio:**
+
 1. GitHub → Actions → Daily Reminder → Run workflow
 2. Verificar mensaje en Telegram
 
 **Dashboard:**
+
 1. Visitar https://research-pedidos.netlify.app/dashboard
 2. Verificar que carga los pedidos
 3. Click en "Completar" en algún pedido

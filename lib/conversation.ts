@@ -48,16 +48,14 @@ export async function saveConversationState(
   state: ConversationState,
   supabase: SupabaseClient
 ): Promise<void> {
-  const { error } = await supabase
-    .from('conversation_state')
-    .upsert({
-      chat_id: state.chatId,
-      user_id: state.userId,
-      step: state.step,
-      data: state.data,
-      updated_at: new Date().toISOString(),
-      team_id: getRequiredTeamId(),
-    });
+  const { error } = await supabase.from('conversation_state').upsert({
+    chat_id: state.chatId,
+    user_id: state.userId,
+    step: state.step,
+    data: state.data,
+    updated_at: new Date().toISOString(),
+    team_id: getRequiredTeamId(),
+  });
 
   if (error) {
     throw error;
@@ -110,7 +108,8 @@ export const conversationMessages = {
 
   error: '⚠️ No entendí esa respuesta. Por favor intenta de nuevo.',
 
-  invalidDate: '⚠️ No pude entender esa fecha. Usa formatos como:\n• "25/12" o "25/12/2024"\n• "hoy", "mañana"\n• "en 3 días"',
+  invalidDate:
+    '⚠️ No pude entender esa fecha. Usa formatos como:\n• "25/12" o "25/12/2024"\n• "hoy", "mañana"\n• "en 3 días"',
 
   invalidAssignment: '⚠️ Por favor responde con 1, 2, 3, 4 o 5.',
 };

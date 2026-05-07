@@ -2,22 +2,19 @@
 
 import { useState } from 'react';
 import { Request, RequestStatus } from '@/lib/types';
-import { getNextStatuses, getStatusConfig, canTransition, requiresBlockedReason } from '@/lib/statusMachine';
+import {
+  getNextStatuses,
+  getStatusConfig,
+  canTransition,
+  requiresBlockedReason,
+} from '@/lib/statusMachine';
 import { formatLimaDate, formatDaysLeft } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { logActivity } from '@/lib/activityLog';
 import { getRequiredTeamId } from '@/lib/teamId';
 import { motion, AnimatePresence } from 'framer-motion';
 import { modalOverlayVariants, springs } from '@/lib/animations';
-import {
-  X,
-  Clock,
-  User,
-  Calendar,
-  FileText,
-  AlertTriangle,
-  ChevronRight,
-} from 'lucide-react';
+import { X, Clock, User, Calendar, FileText, AlertTriangle, ChevronRight } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import StatusTimeline from './StatusTimeline';
 import CommentThread from './CommentThread';
@@ -97,12 +94,18 @@ export default function PedidoDetailPanel({
       if (error) throw error;
 
       // Log the activity
-      const action = newStatus === 'blocked' ? 'blocked'
-        : request.status === 'blocked' ? 'unblocked'
-        : newStatus === 'completed' ? 'completed'
-        : newStatus === 'cancelled' ? 'cancelled'
-        : request.status === 'cancelled' && newStatus === 'pending' ? 'reopened'
-        : 'status_changed';
+      const action =
+        newStatus === 'blocked'
+          ? 'blocked'
+          : request.status === 'blocked'
+            ? 'unblocked'
+            : newStatus === 'completed'
+              ? 'completed'
+              : newStatus === 'cancelled'
+                ? 'cancelled'
+                : request.status === 'cancelled' && newStatus === 'pending'
+                  ? 'reopened'
+                  : 'status_changed';
 
       await logActivity(request.id, currentUserId, action, {
         from_status: request.status,
@@ -195,12 +198,28 @@ export default function PedidoDetailPanel({
               {/* Info Grid */}
               <div
                 className="grid grid-cols-2 gap-3 p-3 rounded"
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.05)',
+                }}
               >
-                <InfoItem icon={<User size={10} />} label="Solicitante" value={`${request.requester_name}${request.requester_role ? ` (${request.requester_role})` : ''}`} />
+                <InfoItem
+                  icon={<User size={10} />}
+                  label="Solicitante"
+                  value={`${request.requester_name}${request.requester_role ? ` (${request.requester_role})` : ''}`}
+                />
                 <InfoItem icon={<User size={10} />} label="Asignado" value={assignedName} />
-                <InfoItem icon={<Calendar size={10} />} label="Entrega" value={formatLimaDate(request.deadline)} />
-                <InfoItem icon={<Clock size={10} />} label="Tiempo" value={daysLeft} urgent={daysLeft.includes('Atrasado') || daysLeft.includes('HOY')} />
+                <InfoItem
+                  icon={<Calendar size={10} />}
+                  label="Entrega"
+                  value={formatLimaDate(request.deadline)}
+                />
+                <InfoItem
+                  icon={<Clock size={10} />}
+                  label="Tiempo"
+                  value={daysLeft}
+                  urgent={daysLeft.includes('Atrasado') || daysLeft.includes('HOY')}
+                />
               </div>
 
               {/* Blocked Info */}
@@ -216,7 +235,10 @@ export default function PedidoDetailPanel({
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <AlertTriangle size={10} style={{ color: '#E53935' }} />
-                    <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: '#E53935' }}>
+                    <span
+                      className="text-[10px] font-medium uppercase tracking-wider"
+                      style={{ color: '#E53935' }}
+                    >
                       Motivo del bloqueo
                     </span>
                   </div>
@@ -279,7 +301,10 @@ export default function PedidoDetailPanel({
                         border: '1px solid rgba(229, 57, 53, 0.2)',
                       }}
                     >
-                      <p className="text-[10px] uppercase tracking-wider" style={{ color: '#E53935' }}>
+                      <p
+                        className="text-[10px] uppercase tracking-wider"
+                        style={{ color: '#E53935' }}
+                      >
                         Motivo del bloqueo (obligatorio)
                       </p>
                       <textarea
@@ -301,7 +326,10 @@ export default function PedidoDetailPanel({
                           Confirmar Bloqueo
                         </motion.button>
                         <motion.button
-                          onClick={() => { setShowBlockedInput(false); setBlockedReason(''); }}
+                          onClick={() => {
+                            setShowBlockedInput(false);
+                            setBlockedReason('');
+                          }}
                           className="px-3 py-1.5 rounded-sm text-[10px] font-medium uppercase tracking-wider text-[#999]"
                           style={{ background: 'rgba(255,255,255,0.06)' }}
                           whileTap={{ scale: 0.97 }}
@@ -316,7 +344,10 @@ export default function PedidoDetailPanel({
 
               {/* Tabs: Timeline / Comments */}
               <div>
-                <div className="flex gap-1 mb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div
+                  className="flex gap-1 mb-3"
+                  style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+                >
                   <TabButton
                     active={activeTab === 'timeline'}
                     onClick={() => setActiveTab('timeline')}
@@ -338,10 +369,7 @@ export default function PedidoDetailPanel({
                       exit={{ opacity: 0, x: 10 }}
                       transition={{ duration: 0.15 }}
                     >
-                      <StatusTimeline
-                        requestId={request.id}
-                        teamMembers={teamMembers}
-                      />
+                      <StatusTimeline requestId={request.id} teamMembers={teamMembers} />
                     </motion.div>
                   ) : (
                     <motion.div

@@ -6,7 +6,21 @@ import { getActivityLog, getActivityDescription, ActivityDetails } from '@/lib/a
 import { getStatusConfig } from '@/lib/statusMachine';
 import { formatLimaDateTime } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LucideIcon, Clock, Play, Eye, Pause, RotateCcw, Check, X, Edit3, MessageSquare, UserPlus, Calendar, AlertTriangle } from 'lucide-react';
+import {
+  LucideIcon,
+  Clock,
+  Play,
+  Eye,
+  Pause,
+  RotateCcw,
+  Check,
+  X,
+  Edit3,
+  MessageSquare,
+  UserPlus,
+  Calendar,
+  AlertTriangle,
+} from 'lucide-react';
 
 const actionIcons: Record<string, LucideIcon> = {
   created: Clock,
@@ -126,9 +140,7 @@ export default function StatusTimeline({ requestId, teamMembers = [] }: StatusTi
                     {getActivityDescription(activity.action as any, details)}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[9px] text-[#666]">
-                      {getUserName(activity.user_id)}
-                    </span>
+                    <span className="text-[9px] text-[#666]">{getUserName(activity.user_id)}</span>
                     <span className="text-[9px] text-[#555]">
                       {formatLimaDateTime(activity.created_at)}
                     </span>

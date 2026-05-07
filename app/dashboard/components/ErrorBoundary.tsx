@@ -52,9 +52,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
         <div className="lcd-screen p-8 text-center" role="alert">
           <AlertTriangle size={48} className="mx-auto mb-4 text-[#FF4500]" />
           <h2 className="lcd-number text-lg mb-2">ERROR</h2>
-          <p className="text-[#949494] text-sm mb-4">
-            Algo salió mal. Por favor intenta de nuevo.
-          </p>
+          <p className="text-[#949494] text-sm mb-4">Algo salió mal. Por favor intenta de nuevo.</p>
           {process.env.NODE_ENV === 'development' && this.state.error && (
             <p className="text-[#CE2021] text-xs mb-4 font-mono break-all">
               {this.state.error.message}

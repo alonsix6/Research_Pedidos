@@ -52,7 +52,7 @@ async function fetchWithRetry(
       // Si no es el último intento, esperar con backoff exponencial
       if (attempt < maxRetries - 1) {
         const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
   }
@@ -177,9 +177,7 @@ export function createRequestButtons(requestId: string): InlineKeyboardMarkup {
         { text: '✅ Completar', callback_data: `complete_${requestId}` },
         { text: '👁️ Ver detalles', callback_data: `details_${requestId}` },
       ],
-      [
-        { text: '📋 Ver todos', callback_data: 'view_all' },
-      ],
+      [{ text: '📋 Ver todos', callback_data: 'view_all' }],
     ],
   };
 }
@@ -315,7 +313,10 @@ Usa /ayuda para ver todos los comandos disponibles.
 /**
  * Valida que el mensaje venga de un usuario autorizado (en el team actual)
  */
-export async function isAuthorizedUser(telegramId: string, supabase: SupabaseClient): Promise<boolean> {
+export async function isAuthorizedUser(
+  telegramId: string,
+  supabase: SupabaseClient
+): Promise<boolean> {
   const { data, error } = await supabase
     .from('users')
     .select('id')

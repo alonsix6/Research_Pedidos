@@ -79,27 +79,27 @@ El sistema usa **multi-tenancy con `team_id`**: una sola base de datos Supabase 
 
 Cada tabla principal tiene una columna `team_id` (UUID). Cada deploy (dashboard + bot) recibe su propio `team_id` via variables de entorno:
 
-| Capa | Variable | Efecto |
-|------|----------|--------|
-| **Frontend** (browser) | `NEXT_PUBLIC_TEAM_ID` | Todas las queries del dashboard agregan `.eq('team_id', TEAM_ID)` |
-| **Backend** (Netlify Functions) | `TEAM_ID` | El bot filtra todos los comandos por `team_id` |
-| **Cron** (GitHub Actions) | `TEAM_ID` | El daily reminder solo envía pedidos del equipo |
-| **Realtime** | Filtro automático | Suscripción usa `filter: team_id=eq.<UUID>` |
+| Capa                            | Variable              | Efecto                                                            |
+| ------------------------------- | --------------------- | ----------------------------------------------------------------- |
+| **Frontend** (browser)          | `NEXT_PUBLIC_TEAM_ID` | Todas las queries del dashboard agregan `.eq('team_id', TEAM_ID)` |
+| **Backend** (Netlify Functions) | `TEAM_ID`             | El bot filtra todos los comandos por `team_id`                    |
+| **Cron** (GitHub Actions)       | `TEAM_ID`             | El daily reminder solo envía pedidos del equipo                   |
+| **Realtime**                    | Filtro automático     | Suscripción usa `filter: team_id=eq.<UUID>`                       |
 
 **Archivos que implementan el filtro:**
 
-| Archivo | Qué filtra |
-|---------|-----------|
-| `lib/hooks/useRealtimeRequests.ts` | Fetch inicial + suscripción Realtime de pedidos |
-| `lib/hooks/useTeamMembers.ts` | Lista de miembros del equipo |
-| `lib/hooks/useTeamInfo.ts` | Nombre del equipo (para el título del dashboard) |
-| `app/dashboard/components/PedidoModal.tsx` | Crear/editar pedidos + cargar usuarios |
-| `app/dashboard/components/HistoryModal.tsx` | Historial de pedidos completados |
-| `app/dashboard/page.tsx` | Completar/eliminar pedidos |
-| `netlify/functions/telegram-webhook.ts` | Todos los comandos del bot (/ver, /mios, /completar, etc.) |
-| `lib/conversation.ts` | Estado conversacional del bot (get/save/clear) |
-| `lib/telegram.ts` | Helpers del bot |
-| `scripts/daily-reminder.js` | Recordatorio diario filtrado por equipo |
+| Archivo                                     | Qué filtra                                                 |
+| ------------------------------------------- | ---------------------------------------------------------- |
+| `lib/hooks/useRealtimeRequests.ts`          | Fetch inicial + suscripción Realtime de pedidos            |
+| `lib/hooks/useTeamMembers.ts`               | Lista de miembros del equipo                               |
+| `lib/hooks/useTeamInfo.ts`                  | Nombre del equipo (para el título del dashboard)           |
+| `app/dashboard/components/PedidoModal.tsx`  | Crear/editar pedidos + cargar usuarios                     |
+| `app/dashboard/components/HistoryModal.tsx` | Historial de pedidos completados                           |
+| `app/dashboard/page.tsx`                    | Completar/eliminar pedidos                                 |
+| `netlify/functions/telegram-webhook.ts`     | Todos los comandos del bot (/ver, /mios, /completar, etc.) |
+| `lib/conversation.ts`                       | Estado conversacional del bot (get/save/clear)             |
+| `lib/telegram.ts`                           | Helpers del bot                                            |
+| `scripts/daily-reminder.js`                 | Recordatorio diario filtrado por equipo                    |
 
 > **Nota:** Si `TEAM_ID` / `NEXT_PUBLIC_TEAM_ID` no están definidos, el sistema funciona sin filtro (modo legacy, muestra todo).
 
@@ -134,20 +134,20 @@ Cada deploy de Netlify es **el mismo código** (mismo repo o fork), solo cambian
 
 ## Stack Tecnológico
 
-| Capa | Tecnología | Propósito |
-|------|-----------|-----------|
-| **Frontend** | Next.js 14 (App Router) | Framework React con SSR/SSG |
-| **Lenguaje** | TypeScript 5.x | Tipado estático |
-| **Estilos** | Tailwind CSS 3.4.x | Utility-first CSS |
-| **Animaciones** | Framer Motion 12.x | Animaciones declarativas |
-| **Drag & Drop** | dnd-kit 6.x | Reordenamiento de pedidos |
-| **Fechas** | date-fns + date-fns-tz | Timezone Lima (UTC-5) |
-| **PWA** | Serwist 9.x | Service Worker / offline |
-| **Database** | Supabase (PostgreSQL) | DB + Realtime + Auth |
-| **Serverless** | Netlify Functions | Webhook del bot |
-| **Deploy** | Netlify | Hosting + CDN + Functions |
-| **Cron** | GitHub Actions | Tareas programadas |
-| **Bot** | Telegram Bot API | Interfaz de chat |
+| Capa            | Tecnología              | Propósito                   |
+| --------------- | ----------------------- | --------------------------- |
+| **Frontend**    | Next.js 14 (App Router) | Framework React con SSR/SSG |
+| **Lenguaje**    | TypeScript 5.x          | Tipado estático             |
+| **Estilos**     | Tailwind CSS 3.4.x      | Utility-first CSS           |
+| **Animaciones** | Framer Motion 12.x      | Animaciones declarativas    |
+| **Drag & Drop** | dnd-kit 6.x             | Reordenamiento de pedidos   |
+| **Fechas**      | date-fns + date-fns-tz  | Timezone Lima (UTC-5)       |
+| **PWA**         | Serwist 9.x             | Service Worker / offline    |
+| **Database**    | Supabase (PostgreSQL)   | DB + Realtime + Auth        |
+| **Serverless**  | Netlify Functions       | Webhook del bot             |
+| **Deploy**      | Netlify                 | Hosting + CDN + Functions   |
+| **Cron**        | GitHub Actions          | Tareas programadas          |
+| **Bot**         | Telegram Bot API        | Interfaz de chat            |
 
 ---
 
@@ -213,13 +213,13 @@ Research_Pedidos/
 
 El sistema tiene **5 tablas**:
 
-| Tabla | Propósito | Tiene `team_id` |
-|-------|-----------|:---:|
-| `teams` | Registro de equipos (nombre, slug) | — |
-| `users` | Miembros del equipo, vinculados por Telegram ID | ✅ |
-| `requests` | Pedidos/tareas (tabla principal) | ✅ |
-| `activity_log` | Historial de cambios (auditoría) | ✅ |
-| `conversation_state` | Estado del flujo conversacional del bot | ✅ |
+| Tabla                | Propósito                                       | Tiene `team_id` |
+| -------------------- | ----------------------------------------------- | :-------------: |
+| `teams`              | Registro de equipos (nombre, slug)              |        —        |
+| `users`              | Miembros del equipo, vinculados por Telegram ID |       ✅        |
+| `requests`           | Pedidos/tareas (tabla principal)                |       ✅        |
+| `activity_log`       | Historial de cambios (auditoría)                |       ✅        |
+| `conversation_state` | Estado del flujo conversacional del bot         |       ✅        |
 
 ### Schema SQL Completo
 
@@ -391,27 +391,27 @@ O desde el dashboard de Supabase: **Database > Replication** > activar `requests
 
 ## Variables de Entorno
 
-| Variable | Tipo | Dónde se usa | Descripción |
-|----------|------|-------------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Pública | Frontend + Backend + Cron | URL del proyecto Supabase |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Pública | Frontend + Cron | Anon key (segura por RLS) |
-| `SUPABASE_SERVICE_ROLE_KEY` | **Privada** | Solo Netlify Functions | Service role key (bypasea RLS) |
-| `NEXT_PUBLIC_TEAM_ID` | Pública | Frontend | UUID del equipo (filtra dashboard) |
-| `TEAM_ID` | **Privada** | Netlify Functions + Cron | UUID del equipo (filtra bot + reminder) |
-| `TELEGRAM_BOT_TOKEN` | **Privada** | Netlify Functions + Cron | Token del bot (@BotFather) |
-| `TELEGRAM_CHAT_ID` | **Privada** | Netlify Functions + Cron | ID del grupo de Telegram |
-| `TELEGRAM_WEBHOOK_SECRET` | **Privada** | Netlify Functions + Cron | Secret para validar webhooks |
-| `SITE_URL` | **Privada** | Cron (check-webhook) | URL del sitio en Netlify |
+| Variable                        | Tipo        | Dónde se usa              | Descripción                             |
+| ------------------------------- | ----------- | ------------------------- | --------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Pública     | Frontend + Backend + Cron | URL del proyecto Supabase               |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Pública     | Frontend + Cron           | Anon key (segura por RLS)               |
+| `SUPABASE_SERVICE_ROLE_KEY`     | **Privada** | Solo Netlify Functions    | Service role key (bypasea RLS)          |
+| `NEXT_PUBLIC_TEAM_ID`           | Pública     | Frontend                  | UUID del equipo (filtra dashboard)      |
+| `TEAM_ID`                       | **Privada** | Netlify Functions + Cron  | UUID del equipo (filtra bot + reminder) |
+| `TELEGRAM_BOT_TOKEN`            | **Privada** | Netlify Functions + Cron  | Token del bot (@BotFather)              |
+| `TELEGRAM_CHAT_ID`              | **Privada** | Netlify Functions + Cron  | ID del grupo de Telegram                |
+| `TELEGRAM_WEBHOOK_SECRET`       | **Privada** | Netlify Functions + Cron  | Secret para validar webhooks            |
+| `SITE_URL`                      | **Privada** | Cron (check-webhook)      | URL del sitio en Netlify                |
 
 > **Importante:** `NEXT_PUBLIC_TEAM_ID` y `TEAM_ID` deben tener **el mismo UUID**. La diferencia es que `NEXT_PUBLIC_` es accesible en el browser y `TEAM_ID` solo en server.
 
 ### Dónde configurar cada variable
 
-| Lugar | Variables |
-|-------|----------|
-| `.env.local` (dev local) | Todas |
-| **Netlify** (Environment variables) | Todas excepto `SITE_URL` |
-| **GitHub Actions** (Secrets) | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_WEBHOOK_SECRET`, `TEAM_ID`, `SITE_URL` |
+| Lugar                               | Variables                                                                                                                                               |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.env.local` (dev local)            | Todas                                                                                                                                                   |
+| **Netlify** (Environment variables) | Todas excepto `SITE_URL`                                                                                                                                |
+| **GitHub Actions** (Secrets)        | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_WEBHOOK_SECRET`, `TEAM_ID`, `SITE_URL` |
 
 ---
 
@@ -545,16 +545,16 @@ ON CONFLICT (telegram_id) DO UPDATE SET
 1. En Netlify → **Add new site** → **Import an existing project** → seleccionar el mismo repo
 2. Configurar variables de entorno con los valores del nuevo equipo:
 
-| Variable | Valor |
-|----------|-------|
-| `NEXT_PUBLIC_SUPABASE_URL` | **Mismo** que el equipo original |
+| Variable                        | Valor                            |
+| ------------------------------- | -------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | **Mismo** que el equipo original |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **Mismo** que el equipo original |
-| `SUPABASE_SERVICE_ROLE_KEY` | **Mismo** que el equipo original |
-| `NEXT_PUBLIC_TEAM_ID` | UUID del **nuevo** equipo |
-| `TEAM_ID` | UUID del **nuevo** equipo |
-| `TELEGRAM_BOT_TOKEN` | Token del **nuevo** bot |
-| `TELEGRAM_CHAT_ID` | Chat ID del **nuevo** grupo |
-| `TELEGRAM_WEBHOOK_SECRET` | Secret del **nuevo** webhook |
+| `SUPABASE_SERVICE_ROLE_KEY`     | **Mismo** que el equipo original |
+| `NEXT_PUBLIC_TEAM_ID`           | UUID del **nuevo** equipo        |
+| `TEAM_ID`                       | UUID del **nuevo** equipo        |
+| `TELEGRAM_BOT_TOKEN`            | Token del **nuevo** bot          |
+| `TELEGRAM_CHAT_ID`              | Chat ID del **nuevo** grupo      |
+| `TELEGRAM_WEBHOOK_SECRET`       | Secret del **nuevo** webhook     |
 
 3. Deploy
 
@@ -590,15 +590,15 @@ Si usaste un fork, configura los secrets en el fork:
 
 ### Resumen: Qué comparten y qué no
 
-| Recurso | ¿Compartido? | Notas |
-|---------|:---:|-------|
-| Supabase (DB) | ✅ | Mismo proyecto, misma URL y keys |
-| Código fuente | ✅ | Mismo repo o fork |
-| `TEAM_ID` | ❌ | UUID distinto por equipo |
-| Bot de Telegram | ❌ | Cada equipo tiene su propio bot |
-| Grupo de Telegram | ❌ | Cada equipo tiene su propio grupo |
-| Deploy Netlify | ❌ | Un site por equipo |
-| GitHub Actions | ❌ | Un set de secrets por repo/fork |
+| Recurso           | ¿Compartido? | Notas                             |
+| ----------------- | :----------: | --------------------------------- |
+| Supabase (DB)     |      ✅      | Mismo proyecto, misma URL y keys  |
+| Código fuente     |      ✅      | Mismo repo o fork                 |
+| `TEAM_ID`         |      ❌      | UUID distinto por equipo          |
+| Bot de Telegram   |      ❌      | Cada equipo tiene su propio bot   |
+| Grupo de Telegram |      ❌      | Cada equipo tiene su propio grupo |
+| Deploy Netlify    |      ❌      | Un site por equipo                |
+| GitHub Actions    |      ❌      | Un set de secrets por repo/fork   |
 
 ---
 
@@ -606,17 +606,17 @@ Si usaste un fork, configura los secrets en el fork:
 
 ### Comandos
 
-| Comando | Descripción |
-|---------|-------------|
-| `/ayuda` | Ver todos los comandos |
-| `/menu` | Menú con botones interactivos |
-| `/ver` | Pedidos activos del equipo |
-| `/mios` | Pedidos asignados a ti |
-| `/hoy` | Pedidos que vencen hoy |
-| `/semana` | Pedidos de esta semana |
-| `/urgente` | Pedidos urgentes (< 2 días) |
+| Comando        | Descripción                      |
+| -------------- | -------------------------------- |
+| `/ayuda`       | Ver todos los comandos           |
+| `/menu`        | Menú con botones interactivos    |
+| `/ver`         | Pedidos activos del equipo       |
+| `/mios`        | Pedidos asignados a ti           |
+| `/hoy`         | Pedidos que vencen hoy           |
+| `/semana`      | Pedidos de esta semana           |
+| `/urgente`     | Pedidos urgentes (< 2 días)      |
 | `/nuevopedido` | Crear pedido (flujo paso a paso) |
-| `/completar` | Marcar pedido como completado |
+| `/completar`   | Marcar pedido como completado    |
 
 ### Flujo Conversacional (/nuevopedido)
 
@@ -669,19 +669,20 @@ curl -s "https://api.telegram.org/bot<TOKEN>/getWebhookInfo" | python3 -m json.t
 
 ### Atajos de Teclado
 
-| Atajo | Acción |
-|-------|--------|
-| `Alt + N` | Nuevo pedido |
+| Atajo     | Acción          |
+| --------- | --------------- |
+| `Alt + N` | Nuevo pedido    |
 | `Alt + R` | Refrescar datos |
-| `Alt + K` | Abrir búsqueda |
-| `Alt + C` | Vista compacta |
-| `Alt + M` | Toggle sonido |
-| `Alt + /` | Ver atajos |
-| `Escape` | Cerrar modales |
+| `Alt + K` | Abrir búsqueda  |
+| `Alt + C` | Vista compacta  |
+| `Alt + M` | Toggle sonido   |
+| `Alt + /` | Ver atajos      |
+| `Escape`  | Cerrar modales  |
 
 ### Diseño OP-1
 
 Inspirado en el **Teenage Engineering OP-1**:
+
 - Paleta: Gris oscuro + cyan (`--te-cyan`) + naranja (`--te-orange`)
 - LCD Display con números segmentados
 - Tipografía monospace (JetBrains Mono)
@@ -714,31 +715,31 @@ Inspirado en el **Teenage Engineering OP-1**:
 
 ### Recordatorio Diario
 
-| Config | Valor |
-|--------|-------|
-| **Archivo** | `.github/workflows/daily-reminder.yml` |
-| **Horario** | 9:00 AM Lima = 14:00 UTC, L-V |
-| **Cron** | `0 14 * * 1-5` |
-| **Script** | `scripts/daily-reminder.js` |
+| Config      | Valor                                                             |
+| ----------- | ----------------------------------------------------------------- |
+| **Archivo** | `.github/workflows/daily-reminder.yml`                            |
+| **Horario** | 9:00 AM Lima = 14:00 UTC, L-V                                     |
+| **Cron**    | `0 14 * * 1-5`                                                    |
+| **Script**  | `scripts/daily-reminder.js`                                       |
 | **Función** | Envía resumen de pedidos urgentes del equipo al grupo de Telegram |
 
 ### Resumen Semanal
 
-| Config | Valor |
-|--------|-------|
-| **Archivo** | `.github/workflows/weekly-summary.yml` |
-| **Horario** | 3:00 PM Lima = 20:00 UTC, Viernes |
-| **Cron** | `0 20 * * 5` |
-| **Script** | `scripts/weekly-summary.js` |
+| Config      | Valor                                                                                       |
+| ----------- | ------------------------------------------------------------------------------------------- |
+| **Archivo** | `.github/workflows/weekly-summary.yml`                                                      |
+| **Horario** | 3:00 PM Lima = 20:00 UTC, Viernes                                                           |
+| **Cron**    | `0 20 * * 5`                                                                                |
+| **Script**  | `scripts/weekly-summary.js`                                                                 |
 | **Función** | Envía resumen de la semana: pedidos completados, pendientes, atrasados y frase motivacional |
 
 ### Verificación de Webhook
 
-| Config | Valor |
-|--------|-------|
-| **Archivo** | `.github/workflows/check-webhook.yml` |
-| **Horario** | Cada 6 horas |
-| **Cron** | `0 */6 * * *` |
+| Config      | Valor                                   |
+| ----------- | --------------------------------------- |
+| **Archivo** | `.github/workflows/check-webhook.yml`   |
+| **Horario** | Cada 6 horas                            |
+| **Cron**    | `0 */6 * * *`                           |
 | **Función** | Verifica/reconfigura el webhook del bot |
 
 ### Secrets Requeridos en GitHub
@@ -764,24 +765,25 @@ Inspirado en el **Teenage Engineering OP-1**:
 
 ### Claves de Supabase
 
-| Key | Seguridad | Uso |
-|-----|-----------|-----|
-| Anon Key (`NEXT_PUBLIC_*`) | Segura en frontend (RLS la protege) | Dashboard |
-| Service Role Key | **NUNCA** en frontend | Solo Netlify Functions |
+| Key                        | Seguridad                           | Uso                    |
+| -------------------------- | ----------------------------------- | ---------------------- |
+| Anon Key (`NEXT_PUBLIC_*`) | Segura en frontend (RLS la protege) | Dashboard              |
+| Service Role Key           | **NUNCA** en frontend               | Solo Netlify Functions |
 
 `lib/supabase.ts` implementa el patrón dual:
+
 - `getSupabase()` → Anon Key → frontend
 - `getSupabaseAdmin()` → Service Role → server
 
 ### Headers HTTP (netlify.toml)
 
-| Header | Propósito |
-|--------|-----------|
-| `X-Frame-Options: DENY` | Previene clickjacking |
-| `X-Content-Type-Options: nosniff` | Previene MIME sniffing |
-| `Strict-Transport-Security` | Fuerza HTTPS |
-| `Content-Security-Policy` | Controla orígenes |
-| `Permissions-Policy` | Deshabilita APIs innecesarias |
+| Header                            | Propósito                     |
+| --------------------------------- | ----------------------------- |
+| `X-Frame-Options: DENY`           | Previene clickjacking         |
+| `X-Content-Type-Options: nosniff` | Previene MIME sniffing        |
+| `Strict-Transport-Security`       | Fuerza HTTPS                  |
+| `Content-Security-Policy`         | Controla orígenes             |
+| `Permissions-Policy`              | Deshabilita APIs innecesarias |
 
 ---
 
@@ -831,21 +833,21 @@ El validador `lib/validateEnv.ts` detecta variables faltantes. Verificar todas s
 
 ## Tipos TypeScript (lib/types.ts)
 
-| Tipo | Tabla/Uso |
-|------|-----------|
-| `Team` | Tabla `teams` |
-| `User` | Tabla `users` (incluye `team_id`) |
-| `Request` | Tabla `requests` (incluye `team_id`) |
-| `ActivityLog` | Tabla `activity_log` (incluye `team_id`) |
-| `ConversationState` | Tabla `conversation_state` (incluye `team_id`) |
-| `RequestWithUser` | Request + usuario asignado/creador (join) |
-| `TelegramMessage` | Mensaje entrante de Telegram |
-| `TelegramUpdate` | Update wrapper de Telegram |
-| `ConversationStep` | Enum de pasos del flujo conversacional |
-| `NewRequestData` | Datos parciales al crear pedido |
-| `UserRole` | `'analyst' \| 'assistant' \| 'coordinator' \| 'practicante'` |
-| `RequestStatus` | `'pending' \| 'in_progress' \| 'completed' \| 'cancelled'` |
-| `RequestPriority` | `'low' \| 'normal' \| 'high' \| 'urgent'` |
+| Tipo                | Tabla/Uso                                                    |
+| ------------------- | ------------------------------------------------------------ |
+| `Team`              | Tabla `teams`                                                |
+| `User`              | Tabla `users` (incluye `team_id`)                            |
+| `Request`           | Tabla `requests` (incluye `team_id`)                         |
+| `ActivityLog`       | Tabla `activity_log` (incluye `team_id`)                     |
+| `ConversationState` | Tabla `conversation_state` (incluye `team_id`)               |
+| `RequestWithUser`   | Request + usuario asignado/creador (join)                    |
+| `TelegramMessage`   | Mensaje entrante de Telegram                                 |
+| `TelegramUpdate`    | Update wrapper de Telegram                                   |
+| `ConversationStep`  | Enum de pasos del flujo conversacional                       |
+| `NewRequestData`    | Datos parciales al crear pedido                              |
+| `UserRole`          | `'analyst' \| 'assistant' \| 'coordinator' \| 'practicante'` |
+| `RequestStatus`     | `'pending' \| 'in_progress' \| 'completed' \| 'cancelled'`   |
+| `RequestPriority`   | `'low' \| 'normal' \| 'high' \| 'urgent'`                    |
 
 ---
 

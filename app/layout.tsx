@@ -1,39 +1,39 @@
-import type { Metadata, Viewport } from "next";
-import "./globals.css";
-import ServiceWorkerRegistration from "./components/ServiceWorkerRegistration";
+import type { Metadata, Viewport } from 'next';
+import './globals.css';
+import ServiceWorkerRegistration from './components/ServiceWorkerRegistration';
 
 export const metadata: Metadata = {
-  title: "Reset R&A - Pedidos",
-  description: "Sistema de gestión de pedidos para el equipo de Research & Analytics de Reset",
-  manifest: "/manifest.json",
+  title: 'Reset R&A - Pedidos',
+  description: 'Sistema de gestión de pedidos para el equipo de Research & Analytics de Reset',
+  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Reset Pedidos",
+    statusBarStyle: 'black-translucent',
+    title: 'Reset Pedidos',
   },
   formatDetection: {
     telephone: false,
   },
   icons: {
     icon: [
-      { url: "/icons/icon.svg", type: "image/svg+xml" },
-      { url: "/icons/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-      { url: "/icons/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: '/icons/icon.svg', type: 'image/svg+xml' },
+      { url: '/icons/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/icons/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
     ],
     apple: [
-      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-      { url: "/icons/apple-touch-icon-167.png", sizes: "167x167", type: "image/png" },
-      { url: "/icons/apple-touch-icon-152.png", sizes: "152x152", type: "image/png" },
-      { url: "/icons/apple-touch-icon-120.png", sizes: "120x120", type: "image/png" },
+      { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      { url: '/icons/apple-touch-icon-167.png', sizes: '167x167', type: 'image/png' },
+      { url: '/icons/apple-touch-icon-152.png', sizes: '152x152', type: 'image/png' },
+      { url: '/icons/apple-touch-icon-120.png', sizes: '120x120', type: 'image/png' },
     ],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#FF4500",
-  width: "device-width",
+  themeColor: '#FF4500',
+  width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
   // WCAG AA: Allow user scaling for accessibility

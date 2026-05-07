@@ -8,6 +8,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { daysUntilLimaDate } = require('./_dateUtils');
 const { escapeMd } = require('./_telegramMarkdown');
 const { notifyCronFailure } = require('./_notify');
+const { getPriorityEmoji } = require('./_format');
 
 // Variables de entorno (configuradas en GitHub Secrets)
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -49,22 +50,6 @@ async function sendTelegramMessage(text) {
   }
 
   return response.json();
-}
-
-/**
- * Obtiene emoji según prioridad
- */
-function getPriorityEmoji(priority) {
-  switch (priority) {
-    case 'urgent':
-      return '🔴';
-    case 'high':
-      return '🟡';
-    case 'normal':
-      return '🟢';
-    default:
-      return '⚪';
-  }
 }
 
 /**
@@ -115,11 +100,7 @@ async function main() {
 
   // Obtener nombre del equipo
   let teamName = 'equipo';
-  const { data: teamData } = await supabase
-    .from('teams')
-    .select('name')
-    .eq('id', TEAM_ID)
-    .single();
+  const { data: teamData } = await supabase.from('teams').select('name').eq('id', TEAM_ID).single();
   if (teamData) {
     teamName = teamData.name;
   }

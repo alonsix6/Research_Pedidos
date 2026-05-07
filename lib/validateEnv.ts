@@ -30,7 +30,9 @@ interface ValidationResult {
  * @param isServer - Si está corriendo en el servidor (no en browser)
  * @returns Resultado de la validación
  */
-export function validateEnvironment(isServer: boolean = typeof window === 'undefined'): ValidationResult {
+export function validateEnvironment(
+  isServer: boolean = typeof window === 'undefined'
+): ValidationResult {
   const missingVars: string[] = [];
   const warnings: string[] = [];
 

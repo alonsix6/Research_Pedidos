@@ -160,13 +160,22 @@ export default function PedidoModal({
 
         // Log edit activity with field changes
         const changes: Record<string, { old: string; new: string }> = {};
-        if (editingRequest.client !== requestData.client) changes.client = { old: editingRequest.client, new: requestData.client };
-        if (editingRequest.description !== requestData.description) changes.description = { old: editingRequest.description, new: requestData.description };
-        if (editingRequest.deadline !== requestData.deadline) changes.deadline = { old: editingRequest.deadline, new: requestData.deadline };
-        if (editingRequest.assigned_to !== requestData.assigned_to) changes.assigned = { old: editingRequest.assigned_to || '', new: requestData.assigned_to || '' };
+        if (editingRequest.client !== requestData.client)
+          changes.client = { old: editingRequest.client, new: requestData.client };
+        if (editingRequest.description !== requestData.description)
+          changes.description = { old: editingRequest.description, new: requestData.description };
+        if (editingRequest.deadline !== requestData.deadline)
+          changes.deadline = { old: editingRequest.deadline, new: requestData.deadline };
+        if (editingRequest.assigned_to !== requestData.assigned_to)
+          changes.assigned = {
+            old: editingRequest.assigned_to || '',
+            new: requestData.assigned_to || '',
+          };
 
         if (Object.keys(changes).length > 0) {
-          await logActivity(editingRequest.id, users[0]?.id || null, 'edited', { field_changes: changes });
+          await logActivity(editingRequest.id, users[0]?.id || null, 'edited', {
+            field_changes: changes,
+          });
         }
         if (editingRequest.deadline !== requestData.deadline) {
           await logActivity(editingRequest.id, users[0]?.id || null, 'deadline_changed', {
@@ -175,8 +184,8 @@ export default function PedidoModal({
           });
         }
         if (editingRequest.assigned_to !== requestData.assigned_to) {
-          const oldName = users.find(u => u.id === editingRequest.assigned_to)?.name || '';
-          const newName = users.find(u => u.id === requestData.assigned_to)?.name || '';
+          const oldName = users.find((u) => u.id === editingRequest.assigned_to)?.name || '';
+          const newName = users.find((u) => u.id === requestData.assigned_to)?.name || '';
           await logActivity(editingRequest.id, users[0]?.id || null, 'assigned', {
             old_assigned: oldName,
             new_assigned: newName,
@@ -319,7 +328,9 @@ export default function PedidoModal({
                       rows={3}
                       placeholder="Describe lo que necesitan..."
                       aria-invalid={!!errors.description}
-                      aria-describedby={errors.description ? `${formId}-description-error` : undefined}
+                      aria-describedby={
+                        errors.description ? `${formId}-description-error` : undefined
+                      }
                       required
                     />
                   </FormField>
@@ -337,23 +348,26 @@ export default function PedidoModal({
                         id={`${formId}-requester`}
                         type="text"
                         value={formData.requester_name}
-                        onChange={(e) => setFormData({ ...formData, requester_name: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, requester_name: e.target.value })
+                        }
                         className="input-lcd w-full"
                         placeholder="Nombre"
                         aria-invalid={!!errors.requester_name}
-                        aria-describedby={errors.requester_name ? `${formId}-requester-error` : undefined}
+                        aria-describedby={
+                          errors.requester_name ? `${formId}-requester-error` : undefined
+                        }
                         required
                       />
                     </FormField>
-                    <FormField
-                      id={`${formId}-role`}
-                      label="Cargo"
-                    >
+                    <FormField id={`${formId}-role`} label="Cargo">
                       <input
                         id={`${formId}-role`}
                         type="text"
                         value={formData.requester_role}
-                        onChange={(e) => setFormData({ ...formData, requester_role: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, requester_role: e.target.value })
+                        }
                         className="input-lcd w-full"
                         placeholder="Ej: Ejecutiva"
                       />
@@ -379,11 +393,7 @@ export default function PedidoModal({
                   </FormField>
 
                   {/* Asignado */}
-                  <FormField
-                    id={`${formId}-assigned`}
-                    icon={<User size={12} />}
-                    label="Asignar a"
-                  >
+                  <FormField id={`${formId}-assigned`} icon={<User size={12} />} label="Asignar a">
                     <select
                       id={`${formId}-assigned`}
                       value={formData.assigned_to}
@@ -499,13 +509,21 @@ function FormField({
       transition={{ duration: 0.2 }}
     >
       <label htmlFor={id} className="flex items-center gap-2 mb-1.5">
-        {icon && <span style={{ color: '#FF4500' }} aria-hidden="true">{icon}</span>}
+        {icon && (
+          <span style={{ color: '#FF4500' }} aria-hidden="true">
+            {icon}
+          </span>
+        )}
         <span
           className="text-[10px] uppercase tracking-wider font-medium"
           style={{ color: error ? '#E53935' : '#949494' }}
         >
           {label}
-          {required && <span className="text-[#FF4500] ml-0.5" aria-hidden="true">*</span>}
+          {required && (
+            <span className="text-[#FF4500] ml-0.5" aria-hidden="true">
+              *
+            </span>
+          )}
           {required && <span className="sr-only"> (requerido)</span>}
         </span>
       </label>

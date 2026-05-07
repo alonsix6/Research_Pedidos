@@ -79,7 +79,9 @@ type ViewMode = 'list' | 'kanban';
 export default function DashboardPage() {
   // Settings & Preferences
   const { settings, toggleSound, toggleCompactView } = useSettings();
-  const { playClick, playSuccess, playWhoosh, playNotification } = useAppSound(settings.soundEnabled);
+  const { playClick, playSuccess, playWhoosh, playNotification } = useAppSound(
+    settings.soundEnabled
+  );
   const { showToast } = useToast();
   const { theme, toggleTheme, isDark } = useTheme();
 
@@ -106,15 +108,20 @@ export default function DashboardPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Realtime data with optimistic updates
-  const { requests, loading, error, isConnected, refresh, optimisticUpdate, optimisticDelete } = useRealtimeRequests({
-    onInsert: (req) => {
-      playNotification();
-      showToast('notification', 'Nuevo pedido', `${req.client}: ${req.description.slice(0, 50)}...`);
-    },
-    onUpdate: () => {
-      playWhoosh();
-    },
-  });
+  const { requests, loading, error, isConnected, refresh, optimisticUpdate, optimisticDelete } =
+    useRealtimeRequests({
+      onInsert: (req) => {
+        playNotification();
+        showToast(
+          'notification',
+          'Nuevo pedido',
+          `${req.client}: ${req.description.slice(0, 50)}...`
+        );
+      },
+      onUpdate: () => {
+        playWhoosh();
+      },
+    });
 
   // DnD Sensors
   const sensors = useSensors(
@@ -283,13 +290,13 @@ export default function DashboardPage() {
   }
 
   // Computed data
-  const activeRequests = useMemo(() =>
-    requests.filter((r) => r.status !== 'completed' && r.status !== 'cancelled'),
+  const activeRequests = useMemo(
+    () => requests.filter((r) => r.status !== 'completed' && r.status !== 'cancelled'),
     [requests]
   );
 
-  const completedRequests = useMemo(() =>
-    requests.filter((r) => r.status === 'completed'),
+  const completedRequests = useMemo(
+    () => requests.filter((r) => r.status === 'completed'),
     [requests]
   );
 
@@ -311,14 +318,19 @@ export default function DashboardPage() {
         total: requests.length,
         active: activeRequests.length,
         completed: completedRequests.length,
-        urgent: activeRequests.filter(r => r.priority === 'urgent' || r.priority === 'high').length,
+        urgent: activeRequests.filter((r) => r.priority === 'urgent' || r.priority === 'high')
+          .length,
       };
     }
 
-    const memberRequests = requests.filter(r => r.assigned_to === selectedMember);
-    const memberActive = memberRequests.filter(r => r.status !== 'completed' && r.status !== 'cancelled');
-    const memberCompleted = memberRequests.filter(r => r.status === 'completed');
-    const memberUrgent = memberActive.filter(r => r.priority === 'urgent' || r.priority === 'high');
+    const memberRequests = requests.filter((r) => r.assigned_to === selectedMember);
+    const memberActive = memberRequests.filter(
+      (r) => r.status !== 'completed' && r.status !== 'cancelled'
+    );
+    const memberCompleted = memberRequests.filter((r) => r.status === 'completed');
+    const memberUrgent = memberActive.filter(
+      (r) => r.priority === 'urgent' || r.priority === 'high'
+    );
 
     return {
       total: memberRequests.length,
@@ -370,8 +382,8 @@ export default function DashboardPage() {
     return result;
   }, [activeRequests, selectedMember, searchQuery, settings.sortBy, settings.sortOrder]);
 
-  const { urgent, thisWeek, later } = useMemo(() =>
-    classifyByUrgency(filteredRequests),
+  const { urgent, thisWeek, later } = useMemo(
+    () => classifyByUrgency(filteredRequests),
     [filteredRequests]
   );
 
@@ -379,7 +391,12 @@ export default function DashboardPage() {
   const hasMoreCompleted = completedRequests.length > MAX_VISIBLE_COMPLETED;
 
   // Render list section helper
-  const renderSection = (title: string, items: Request[], color: 'red' | 'orange' | 'green' | 'cyan', sectionKey: string) => {
+  const renderSection = (
+    title: string,
+    items: Request[],
+    color: 'red' | 'orange' | 'green' | 'cyan',
+    sectionKey: string
+  ) => {
     if (items.length === 0) return null;
     return (
       <motion.section
@@ -417,369 +434,444 @@ export default function DashboardPage() {
 
   return (
     <ErrorBoundary>
-    <DeviceFrame>
-      {/* Top Bar with connection indicator - hidden on mobile */}
-      <div className="decorative-mobile-hide">
-        <TopBar isConnected={isConnected && !error} />
-      </div>
-
-      {/* Header Section */}
-      <header className="flex items-start justify-between p-4 pb-2">
-        <div>
-          <h1 className="text-lg font-bold tracking-wide" style={{ color: 'var(--header-text)' }}>
-            {team?.name?.toUpperCase() || 'PEDIDOS'}
-          </h1>
-          <p className="text-[10px] uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--footer-text)' }}>
-            Sistema de Pedidos v3.0
-            <span className="flex items-center gap-1">
-              {isConnected ? (
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex items-center gap-1 text-[#00C853]"
-                >
-                  <Wifi size={10} />
-                  <span className="text-[8px]">LIVE</span>
-                </motion.span>
-              ) : (
-                <span className="flex items-center gap-1 text-[#E53935]">
-                  <WifiOff size={10} />
-                  <span className="text-[8px]">OFFLINE</span>
-                </span>
-              )}
-            </span>
-          </p>
-        </div>
+      <DeviceFrame>
+        {/* Top Bar with connection indicator - hidden on mobile */}
         <div className="decorative-mobile-hide">
-          <SpeakerGrille rows={6} cols={16} aria-hidden="true" />
-        </div>
-      </header>
-
-      {/* Main content area - WCAG landmark */}
-      <main id="main-content" role="main" aria-label="Panel de pedidos">
-      {/* LCD Stats Display */}
-      <div className="px-4 py-2">
-        {loading ? (
-          <StatsSkeleton />
-        ) : error ? (
-          <div className="lcd-screen p-8 text-center">
-            <p className="text-[#CE2021] text-sm mb-4">{error}</p>
-            <Button3D variant="orange" onClick={handleRefresh}>
-              REINTENTAR
-            </Button3D>
-          </div>
-        ) : (
-          <StatsDisplay
-            total={filteredStats.total}
-            active={filteredStats.active}
-            completed={filteredStats.completed}
-            urgent={filteredStats.urgent}
-            teamMembers={teamMembers}
-            selectedMember={selectedMember}
-            onMemberSelect={(memberId) => {
-              playClick();
-              setSelectedMember(memberId);
-            }}
-            requestsByMember={requestsByMember}
-          />
-        )}
-      </div>
-
-      {/* Controls Section */}
-      <div
-        className="flex items-center justify-between px-4 py-3 mx-4 rounded-sm transition-all duration-300"
-        style={{
-          background: 'var(--controls-bg)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -1px 0 rgba(0,0,0,0.1)',
-        }}
-      >
-        {/* Left controls - Settings + View toggle */}
-        <nav className="flex items-center gap-2" aria-label="Controles de visualización">
-          <SettingsDropdown
-            soundEnabled={settings.soundEnabled}
-            onToggleSound={toggleSound}
-            compactView={settings.compactView}
-            onToggleCompactView={toggleCompactView}
-            isDark={isDark}
-            onToggleTheme={() => { playClick(); toggleTheme(); }}
-          />
-          {/* View mode toggle */}
-          <div className="flex items-center rounded-sm overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
-            <motion.button
-              onClick={() => { playClick(); setViewMode('list'); }}
-              className="p-1.5"
-              style={{
-                background: viewMode === 'list' ? 'rgba(255,69,0,0.3)' : 'transparent',
-                color: viewMode === 'list' ? '#FF4500' : '#666',
-              }}
-              whileTap={{ scale: 0.95 }}
-              aria-label="Vista de lista"
-              title="Vista de lista"
-            >
-              <List size={14} />
-            </motion.button>
-            <motion.button
-              onClick={() => { playClick(); setViewMode('kanban'); }}
-              className="p-1.5"
-              style={{
-                background: viewMode === 'kanban' ? 'rgba(255,69,0,0.3)' : 'transparent',
-                color: viewMode === 'kanban' ? '#FF4500' : '#666',
-              }}
-              whileTap={{ scale: 0.95 }}
-              aria-label="Vista Kanban"
-              title="Vista Kanban"
-            >
-              <LayoutGrid size={14} />
-            </motion.button>
-          </div>
-        </nav>
-
-        {/* Action buttons */}
-        <div className="flex items-center gap-2" role="group" aria-label="Acciones principales">
-          <Button3D variant="black" onClick={handleToggleSearch} aria-label="Buscar pedidos (Alt+K)" aria-expanded={isSearchOpen}>
-            <Search size={14} aria-hidden="true" />
-            <span className="sr-only">Buscar</span>
-          </Button3D>
-          <Button3D variant="orange" onClick={handleOpenNewModal} aria-label="Crear nuevo pedido (Alt+N)">
-            <Plus size={14} aria-hidden="true" />
-            NUEVO
-          </Button3D>
-          <Button3D variant="black" onClick={handleRefresh} aria-label="Refrescar datos (Alt+R)">
-            <RefreshCw size={14} aria-hidden="true" />
-            <span className="sr-only">Refrescar</span>
-          </Button3D>
+          <TopBar isConnected={isConnected && !error} />
         </div>
 
-        {/* Right controls */}
-        <nav className="flex items-center gap-2" aria-label="Controles adicionales">
-          <motion.button
-            onClick={() => { playClick(); setShowAnalytics(!showAnalytics); }}
-            className="w-11 h-11 flex items-center justify-center rounded-full"
-            style={{
-              background: showAnalytics
-                ? 'linear-gradient(180deg, #FF6B35 0%, #FF4500 100%)'
-                : 'linear-gradient(180deg, #4A4A4A 0%, #3A3A3A 100%)',
-              boxShadow: showAnalytics
-                ? '0 2px 0 #C23400, inset 0 1px 0 rgba(255,255,255,0.2)'
-                : '0 2px 0 #2A2A2A, inset 0 1px 0 rgba(255,255,255,0.1)',
-            }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95, y: 1 }}
-            aria-label="Mostrar analytics"
-          >
-            <BarChart3 size={16} className={showAnalytics ? 'text-white' : 'text-gray-400'} aria-hidden="true" />
-          </motion.button>
+        {/* Header Section */}
+        <header className="flex items-start justify-between p-4 pb-2">
+          <div>
+            <h1 className="text-lg font-bold tracking-wide" style={{ color: 'var(--header-text)' }}>
+              {team?.name?.toUpperCase() || 'PEDIDOS'}
+            </h1>
+            <p
+              className="text-[10px] uppercase tracking-wider flex items-center gap-2"
+              style={{ color: 'var(--footer-text)' }}
+            >
+              Sistema de Pedidos v3.0
+              <span className="flex items-center gap-1">
+                {isConnected ? (
+                  <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-center gap-1 text-[#00C853]"
+                  >
+                    <Wifi size={10} />
+                    <span className="text-[8px]">LIVE</span>
+                  </motion.span>
+                ) : (
+                  <span className="flex items-center gap-1 text-[#E53935]">
+                    <WifiOff size={10} />
+                    <span className="text-[8px]">OFFLINE</span>
+                  </span>
+                )}
+              </span>
+            </p>
+          </div>
+          <div className="decorative-mobile-hide">
+            <SpeakerGrille rows={6} cols={16} aria-hidden="true" />
+          </div>
+        </header>
 
-          <motion.button
-            onClick={() => { playClick(); setIsHistoryOpen(true); }}
-            className="w-11 h-11 flex items-center justify-center rounded-full"
-            style={{
-              background: 'linear-gradient(180deg, #4A4A4A 0%, #3A3A3A 100%)',
-              boxShadow: '0 2px 0 #2A2A2A, inset 0 1px 0 rgba(255,255,255,0.1)',
-            }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95, y: 1 }}
-            aria-label="Ver historial de pedidos completados"
-          >
-            <History size={16} className="text-gray-400" aria-hidden="true" />
-          </motion.button>
+        {/* Main content area - WCAG landmark */}
+        <main id="main-content" role="main" aria-label="Panel de pedidos">
+          {/* LCD Stats Display */}
+          <div className="px-4 py-2">
+            {loading ? (
+              <StatsSkeleton />
+            ) : error ? (
+              <div className="lcd-screen p-8 text-center">
+                <p className="text-[#CE2021] text-sm mb-4">{error}</p>
+                <Button3D variant="orange" onClick={handleRefresh}>
+                  REINTENTAR
+                </Button3D>
+              </div>
+            ) : (
+              <StatsDisplay
+                total={filteredStats.total}
+                active={filteredStats.active}
+                completed={filteredStats.completed}
+                urgent={filteredStats.urgent}
+                teamMembers={teamMembers}
+                selectedMember={selectedMember}
+                onMemberSelect={(memberId) => {
+                  playClick();
+                  setSelectedMember(memberId);
+                }}
+                requestsByMember={requestsByMember}
+              />
+            )}
+          </div>
 
-          <motion.button
-            onClick={handleShowHelp}
-            className="desktop-only w-11 h-11 flex items-center justify-center rounded-full"
+          {/* Controls Section */}
+          <div
+            className="flex items-center justify-between px-4 py-3 mx-4 rounded-sm transition-all duration-300"
             style={{
-              background: 'linear-gradient(180deg, #4A4A4A 0%, #3A3A3A 100%)',
-              boxShadow: '0 2px 0 #2A2A2A, inset 0 1px 0 rgba(255,255,255,0.1)',
+              background: 'var(--controls-bg)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -1px 0 rgba(0,0,0,0.1)',
             }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95, y: 1 }}
-            aria-label="Ver atajos de teclado (Alt+/)"
           >
-            <Keyboard size={16} className="text-gray-400" aria-hidden="true" />
-          </motion.button>
-        </nav>
-      </div>
+            {/* Left controls - Settings + View toggle */}
+            <nav className="flex items-center gap-2" aria-label="Controles de visualización">
+              <SettingsDropdown
+                soundEnabled={settings.soundEnabled}
+                onToggleSound={toggleSound}
+                compactView={settings.compactView}
+                onToggleCompactView={toggleCompactView}
+                isDark={isDark}
+                onToggleTheme={() => {
+                  playClick();
+                  toggleTheme();
+                }}
+              />
+              {/* View mode toggle */}
+              <div
+                className="flex items-center rounded-sm overflow-hidden"
+                style={{ border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                <motion.button
+                  onClick={() => {
+                    playClick();
+                    setViewMode('list');
+                  }}
+                  className="p-1.5"
+                  style={{
+                    background: viewMode === 'list' ? 'rgba(255,69,0,0.3)' : 'transparent',
+                    color: viewMode === 'list' ? '#FF4500' : '#666',
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                  aria-label="Vista de lista"
+                  title="Vista de lista"
+                >
+                  <List size={14} />
+                </motion.button>
+                <motion.button
+                  onClick={() => {
+                    playClick();
+                    setViewMode('kanban');
+                  }}
+                  className="p-1.5"
+                  style={{
+                    background: viewMode === 'kanban' ? 'rgba(255,69,0,0.3)' : 'transparent',
+                    color: viewMode === 'kanban' ? '#FF4500' : '#666',
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                  aria-label="Vista Kanban"
+                  title="Vista Kanban"
+                >
+                  <LayoutGrid size={14} />
+                </motion.button>
+              </div>
+            </nav>
 
-      {/* Analytics Panel */}
-      <AnimatePresence>
-        {showAnalytics && !loading && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="px-4 mt-3 overflow-hidden"
-          >
-            <AnalyticsPanel
-              requests={requests}
-              teamMembers={teamMembers}
+            {/* Action buttons */}
+            <div className="flex items-center gap-2" role="group" aria-label="Acciones principales">
+              <Button3D
+                variant="black"
+                onClick={handleToggleSearch}
+                aria-label="Buscar pedidos (Alt+K)"
+                aria-expanded={isSearchOpen}
+              >
+                <Search size={14} aria-hidden="true" />
+                <span className="sr-only">Buscar</span>
+              </Button3D>
+              <Button3D
+                variant="orange"
+                onClick={handleOpenNewModal}
+                aria-label="Crear nuevo pedido (Alt+N)"
+              >
+                <Plus size={14} aria-hidden="true" />
+                NUEVO
+              </Button3D>
+              <Button3D
+                variant="black"
+                onClick={handleRefresh}
+                aria-label="Refrescar datos (Alt+R)"
+              >
+                <RefreshCw size={14} aria-hidden="true" />
+                <span className="sr-only">Refrescar</span>
+              </Button3D>
+            </div>
+
+            {/* Right controls */}
+            <nav className="flex items-center gap-2" aria-label="Controles adicionales">
+              <motion.button
+                onClick={() => {
+                  playClick();
+                  setShowAnalytics(!showAnalytics);
+                }}
+                className="w-11 h-11 flex items-center justify-center rounded-full"
+                style={{
+                  background: showAnalytics
+                    ? 'linear-gradient(180deg, #FF6B35 0%, #FF4500 100%)'
+                    : 'linear-gradient(180deg, #4A4A4A 0%, #3A3A3A 100%)',
+                  boxShadow: showAnalytics
+                    ? '0 2px 0 #C23400, inset 0 1px 0 rgba(255,255,255,0.2)'
+                    : '0 2px 0 #2A2A2A, inset 0 1px 0 rgba(255,255,255,0.1)',
+                }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95, y: 1 }}
+                aria-label="Mostrar analytics"
+              >
+                <BarChart3
+                  size={16}
+                  className={showAnalytics ? 'text-white' : 'text-gray-400'}
+                  aria-hidden="true"
+                />
+              </motion.button>
+
+              <motion.button
+                onClick={() => {
+                  playClick();
+                  setIsHistoryOpen(true);
+                }}
+                className="w-11 h-11 flex items-center justify-center rounded-full"
+                style={{
+                  background: 'linear-gradient(180deg, #4A4A4A 0%, #3A3A3A 100%)',
+                  boxShadow: '0 2px 0 #2A2A2A, inset 0 1px 0 rgba(255,255,255,0.1)',
+                }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95, y: 1 }}
+                aria-label="Ver historial de pedidos completados"
+              >
+                <History size={16} className="text-gray-400" aria-hidden="true" />
+              </motion.button>
+
+              <motion.button
+                onClick={handleShowHelp}
+                className="desktop-only w-11 h-11 flex items-center justify-center rounded-full"
+                style={{
+                  background: 'linear-gradient(180deg, #4A4A4A 0%, #3A3A3A 100%)',
+                  boxShadow: '0 2px 0 #2A2A2A, inset 0 1px 0 rgba(255,255,255,0.1)',
+                }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95, y: 1 }}
+                aria-label="Ver atajos de teclado (Alt+/)"
+              >
+                <Keyboard size={16} className="text-gray-400" aria-hidden="true" />
+              </motion.button>
+            </nav>
+          </div>
+
+          {/* Analytics Panel */}
+          <AnimatePresence>
+            {showAnalytics && !loading && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="px-4 mt-3 overflow-hidden"
+              >
+                <AnalyticsPanel requests={requests} teamMembers={teamMembers} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Search & Filter */}
+          <div className="px-4 mt-3">
+            <SearchFilter
+              isOpen={isSearchOpen}
+              onClose={() => setIsSearchOpen(false)}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
             />
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
 
-      {/* Search & Filter */}
-      <div className="px-4 mt-3">
-        <SearchFilter
-          isOpen={isSearchOpen}
-          onClose={() => setIsSearchOpen(false)}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+          {/* Main Content */}
+          <div className="p-4 space-y-6">
+            {viewMode === 'kanban' ? (
+              /* Kanban View */
+              <KanbanBoard
+                requests={filteredRequests}
+                onOpenDetail={handleOpenDetail}
+                onEdit={handleEdit}
+                onStatusChange={handleStatusChange}
+                teamMembers={teamMembers}
+                compact={settings.compactView}
+              />
+            ) : (
+              /* List View */
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                {loading ? (
+                  <>
+                    <SectionSkeleton count={2} />
+                    <SectionSkeleton count={3} />
+                  </>
+                ) : (
+                  <>
+                    <AnimatePresence mode="popLayout">
+                      {renderSection('URGENTES', urgent, 'red', 'urgent')}
+                      {renderSection('ESTA SEMANA', thisWeek, 'orange', 'thisWeek')}
+                      {renderSection('PROXIMOS', later, 'green', 'later')}
+
+                      {/* Completados */}
+                      {completedRequests.length > 0 && (
+                        <motion.section
+                          key="completed"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -20 }}
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <SectionHeader
+                              title="COMPLETADOS"
+                              count={completedRequests.length}
+                              color="cyan"
+                            />
+                            {hasMoreCompleted && (
+                              <motion.button
+                                onClick={() => {
+                                  playClick();
+                                  setIsHistoryOpen(true);
+                                }}
+                                className="text-[10px] uppercase tracking-wide text-[#00E5FF] hover:text-white transition-colors flex items-center gap-1"
+                                whileHover={{ x: 3 }}
+                              >
+                                Ver todos ({completedRequests.length})
+                                <History size={10} />
+                              </motion.button>
+                            )}
+                          </div>
+                          <motion.div
+                            variants={staggerContainerVariants}
+                            initial="initial"
+                            animate="animate"
+                            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
+                          >
+                            {visibleCompleted.map((request) => (
+                              <motion.div key={request.id} variants={staggerItemVariants}>
+                                <PedidoPad
+                                  request={request}
+                                  compact={settings.compactView}
+                                  onOpenDetail={handleOpenDetail}
+                                />
+                              </motion.div>
+                            ))}
+                          </motion.div>
+                        </motion.section>
+                      )}
+                    </AnimatePresence>
+                  </>
+                )}
+
+                {/* Empty state */}
+                {!loading && activeRequests.length === 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="lcd-screen p-8 text-center"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <p className="lcd-number text-lg mb-2">NO DATA</p>
+                    <p className="text-[#949494] text-xs mb-4">No hay pedidos activos</p>
+                    <Button3D
+                      variant="orange"
+                      onClick={handleOpenNewModal}
+                      aria-label="Crear el primer pedido"
+                    >
+                      CREAR PRIMER PEDIDO
+                    </Button3D>
+                  </motion.div>
+                )}
+
+                {/* Search no results */}
+                {!loading &&
+                  searchQuery &&
+                  filteredRequests.length === 0 &&
+                  activeRequests.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="lcd-screen p-6 text-center"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      <Search
+                        size={24}
+                        className="mx-auto mb-3 text-[#949494]"
+                        aria-hidden="true"
+                      />
+                      <p className="text-sm text-[#B0B0B0] mb-1">No se encontraron resultados</p>
+                      <p className="text-xs text-[#949494]">
+                        Intenta con otra búsqueda o{' '}
+                        <button
+                          onClick={() => setSearchQuery('')}
+                          className="text-[#00E5FF] hover:underline focus:outline-none focus:ring-2 focus:ring-[#FF4500] focus:ring-offset-2 focus:ring-offset-[#131313] rounded"
+                          aria-label="Limpiar filtro de búsqueda"
+                        >
+                          limpia el filtro
+                        </button>
+                      </p>
+                    </motion.div>
+                  )}
+              </DndContext>
+            )}
+          </div>
+        </main>
+
+        {/* Footer */}
+        <footer
+          className="flex items-center justify-between px-4 py-3 mt-4"
+          style={{
+            background: 'linear-gradient(180deg, #B8B8B8 0%, #A8A8A8 100%)',
+            borderTop: '1px solid rgba(255,255,255,0.3)',
+          }}
+          role="contentinfo"
+        >
+          <div className="desktop-only items-center gap-2 text-[10px]" style={{ color: '#595959' }}>
+            <Lightbulb size={12} aria-hidden="true" />
+            <span>TIP: Presiona Alt+/ para ver los atajos de teclado</span>
+          </div>
+          <a
+            href="https://t.me/Research_Pedidos_bot"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-[10px] hover:text-[#FF4500] transition-colors"
+            style={{ color: '#595959' }}
+            aria-label="Abrir bot de Telegram @Research_Pedidos_bot en nueva ventana"
+          >
+            <MessageSquare size={12} aria-hidden="true" />
+            @Research_Pedidos_bot
+          </a>
+        </footer>
+
+        {/* Modals */}
+        <PedidoModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          onSuccess={() => {
+            playSuccess();
+            showToast(
+              'success',
+              editingRequest ? 'Actualizado!' : 'Creado!',
+              'El pedido ha sido guardado'
+            );
+          }}
+          editingRequest={editingRequest}
         />
-      </div>
 
-      {/* Main Content */}
-      <div className="p-4 space-y-6">
-        {viewMode === 'kanban' ? (
-          /* Kanban View */
-          <KanbanBoard
-            requests={filteredRequests}
-            onOpenDetail={handleOpenDetail}
-            onEdit={handleEdit}
+        <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
+        <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
+
+        {/* Detail Panel */}
+        {detailRequest && (
+          <PedidoDetailPanel
+            request={detailRequest}
+            isOpen={!!detailRequest}
+            onClose={() => setDetailRequest(null)}
             onStatusChange={handleStatusChange}
             teamMembers={teamMembers}
-            compact={settings.compactView}
+            currentUserId={teamMembers[0]?.id || null}
           />
-        ) : (
-          /* List View */
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            {loading ? (
-              <>
-                <SectionSkeleton count={2} />
-                <SectionSkeleton count={3} />
-              </>
-            ) : (
-              <>
-                <AnimatePresence mode="popLayout">
-                  {renderSection('URGENTES', urgent, 'red', 'urgent')}
-                  {renderSection('ESTA SEMANA', thisWeek, 'orange', 'thisWeek')}
-                  {renderSection('PROXIMOS', later, 'green', 'later')}
-
-                  {/* Completados */}
-                  {completedRequests.length > 0 && (
-                    <motion.section
-                      key="completed"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <SectionHeader title="COMPLETADOS" count={completedRequests.length} color="cyan" />
-                        {hasMoreCompleted && (
-                          <motion.button
-                            onClick={() => { playClick(); setIsHistoryOpen(true); }}
-                            className="text-[10px] uppercase tracking-wide text-[#00E5FF] hover:text-white transition-colors flex items-center gap-1"
-                            whileHover={{ x: 3 }}
-                          >
-                            Ver todos ({completedRequests.length})
-                            <History size={10} />
-                          </motion.button>
-                        )}
-                      </div>
-                      <motion.div
-                        variants={staggerContainerVariants}
-                        initial="initial"
-                        animate="animate"
-                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
-                      >
-                        {visibleCompleted.map((request) => (
-                          <motion.div key={request.id} variants={staggerItemVariants}>
-                            <PedidoPad
-                              request={request}
-                              compact={settings.compactView}
-                              onOpenDetail={handleOpenDetail}
-                            />
-                          </motion.div>
-                        ))}
-                      </motion.div>
-                    </motion.section>
-                  )}
-                </AnimatePresence>
-              </>
-            )}
-
-            {/* Empty state */}
-            {!loading && activeRequests.length === 0 && (
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="lcd-screen p-8 text-center" role="status" aria-live="polite">
-                <p className="lcd-number text-lg mb-2">NO DATA</p>
-                <p className="text-[#949494] text-xs mb-4">No hay pedidos activos</p>
-                <Button3D variant="orange" onClick={handleOpenNewModal} aria-label="Crear el primer pedido">CREAR PRIMER PEDIDO</Button3D>
-              </motion.div>
-            )}
-
-            {/* Search no results */}
-            {!loading && searchQuery && filteredRequests.length === 0 && activeRequests.length > 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="lcd-screen p-6 text-center" role="status" aria-live="polite">
-                <Search size={24} className="mx-auto mb-3 text-[#949494]" aria-hidden="true" />
-                <p className="text-sm text-[#B0B0B0] mb-1">No se encontraron resultados</p>
-                <p className="text-xs text-[#949494]">
-                  Intenta con otra búsqueda o{' '}
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="text-[#00E5FF] hover:underline focus:outline-none focus:ring-2 focus:ring-[#FF4500] focus:ring-offset-2 focus:ring-offset-[#131313] rounded"
-                    aria-label="Limpiar filtro de búsqueda"
-                  >
-                    limpia el filtro
-                  </button>
-                </p>
-              </motion.div>
-            )}
-          </DndContext>
         )}
-      </div>
-      </main>
-
-      {/* Footer */}
-      <footer
-        className="flex items-center justify-between px-4 py-3 mt-4"
-        style={{
-          background: 'linear-gradient(180deg, #B8B8B8 0%, #A8A8A8 100%)',
-          borderTop: '1px solid rgba(255,255,255,0.3)',
-        }}
-        role="contentinfo"
-      >
-        <div className="desktop-only items-center gap-2 text-[10px]" style={{ color: '#595959' }}>
-          <Lightbulb size={12} aria-hidden="true" />
-          <span>TIP: Presiona Alt+/ para ver los atajos de teclado</span>
-        </div>
-        <a
-          href="https://t.me/Research_Pedidos_bot"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 text-[10px] hover:text-[#FF4500] transition-colors"
-          style={{ color: '#595959' }}
-          aria-label="Abrir bot de Telegram @Research_Pedidos_bot en nueva ventana"
-        >
-          <MessageSquare size={12} aria-hidden="true" />
-          @Research_Pedidos_bot
-        </a>
-      </footer>
-
-      {/* Modals */}
-      <PedidoModal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        onSuccess={() => {
-          playSuccess();
-          showToast('success', editingRequest ? 'Actualizado!' : 'Creado!', 'El pedido ha sido guardado');
-        }}
-        editingRequest={editingRequest}
-      />
-
-      <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
-      <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
-
-      {/* Detail Panel */}
-      {detailRequest && (
-        <PedidoDetailPanel
-          request={detailRequest}
-          isOpen={!!detailRequest}
-          onClose={() => setDetailRequest(null)}
-          onStatusChange={handleStatusChange}
-          teamMembers={teamMembers}
-          currentUserId={teamMembers[0]?.id || null}
-        />
-      )}
-    </DeviceFrame>
+      </DeviceFrame>
     </ErrorBoundary>
   );
 }

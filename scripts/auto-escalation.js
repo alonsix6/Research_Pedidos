@@ -137,7 +137,9 @@ async function main() {
   if (hasNotifications) {
     msg += '---\n💡 Usa /estado para cambiar estados desde Telegram';
     await sendMessage(TELEGRAM_CHAT_ID, msg);
-    console.log(`📣 Sent escalation alert: ${staleRequests.length} stale, ${longBlockedRequests.length} long-blocked, ${overdueRequests.length} overdue`);
+    console.log(
+      `📣 Sent escalation alert: ${staleRequests.length} stale, ${longBlockedRequests.length} long-blocked, ${overdueRequests.length} overdue`
+    );
   } else {
     console.log('✅ No escalation needed.');
   }

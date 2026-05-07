@@ -53,27 +53,27 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, [settings, isLoaded]);
 
   const setSoundEnabled = (enabled: boolean) => {
-    setSettings(prev => ({ ...prev, soundEnabled: enabled }));
+    setSettings((prev) => ({ ...prev, soundEnabled: enabled }));
   };
 
   const setCompactView = (compact: boolean) => {
-    setSettings(prev => ({ ...prev, compactView: compact }));
+    setSettings((prev) => ({ ...prev, compactView: compact }));
   };
 
   const setSortBy = (sortBy: Settings['sortBy']) => {
-    setSettings(prev => ({ ...prev, sortBy }));
+    setSettings((prev) => ({ ...prev, sortBy }));
   };
 
   const setSortOrder = (order: Settings['sortOrder']) => {
-    setSettings(prev => ({ ...prev, sortOrder: order }));
+    setSettings((prev) => ({ ...prev, sortOrder: order }));
   };
 
   const toggleSound = () => {
-    setSettings(prev => ({ ...prev, soundEnabled: !prev.soundEnabled }));
+    setSettings((prev) => ({ ...prev, soundEnabled: !prev.soundEnabled }));
   };
 
   const toggleCompactView = () => {
-    setSettings(prev => ({ ...prev, compactView: !prev.compactView }));
+    setSettings((prev) => ({ ...prev, compactView: !prev.compactView }));
   };
 
   return (

@@ -43,7 +43,9 @@ function daysUntilLimaDate(dateInput) {
  */
 function daysSinceLimaTimestamp(timestampStr) {
   if (!timestampStr) return 0;
-  const tsLimaDate = parseISO(formatInTimeZone(parseISO(timestampStr), LIMA_TIMEZONE, 'yyyy-MM-dd'));
+  const tsLimaDate = parseISO(
+    formatInTimeZone(parseISO(timestampStr), LIMA_TIMEZONE, 'yyyy-MM-dd')
+  );
   return differenceInDays(todayLima(), tsLimaDate);
 }
 

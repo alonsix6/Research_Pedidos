@@ -23,16 +23,12 @@ export default function Knob({
 
   return (
     <div className="flex flex-col items-center gap-1">
-      {label && (
-        <span className="label-industrial text-[8px]">{label}</span>
-      )}
+      {label && <span className="label-industrial text-[8px]">{label}</span>}
       <div
         className={`knob ${sizeClass} ${variantClass}`}
         style={{ transform: `rotate(${rotation}deg)` }}
       />
-      {subLabel && (
-        <span className="label-industrial label-orange text-[8px]">{subLabel}</span>
-      )}
+      {subLabel && <span className="label-industrial label-orange text-[8px]">{subLabel}</span>}
     </div>
   );
 }

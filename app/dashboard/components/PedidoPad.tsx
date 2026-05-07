@@ -3,7 +3,15 @@
 import { useState } from 'react';
 import { Request } from '@/lib/types';
 import { formatLimaDate, formatDaysLeft } from '@/lib/utils';
-import { Check, Pencil, Trash2, GripVertical, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import {
+  Check,
+  Pencil,
+  Trash2,
+  GripVertical,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { padVariants, springs } from '@/lib/animations';
 import { useSortable } from '@dnd-kit/sortable';
@@ -43,14 +51,7 @@ export default function PedidoPad({
   const isBlocked = request.status === 'blocked';
 
   // DnD Kit sortable
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: request.id,
     disabled: !isDraggable || isCompleted,
   });
@@ -76,8 +77,8 @@ export default function PedidoPad({
       initial="initial"
       animate="animate"
       exit="exit"
-      whileHover={!isDragging ? "hover" : undefined}
-      whileTap={!isDragging ? "tap" : undefined}
+      whileHover={!isDragging ? 'hover' : undefined}
+      whileTap={!isDragging ? 'tap' : undefined}
       layout
       aria-label={`Pedido de ${request.client}: ${request.description.slice(0, 50)}${request.description.length > 50 ? '...' : ''}`}
       onClick={(e) => {
@@ -143,7 +144,10 @@ export default function PedidoPad({
             </AnimatePresence>
             {isLongDescription && (
               <button
-                onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded(!isExpanded);
+                }}
                 className="flex items-center gap-0.5 text-[9px] mt-1 hover:text-[#00E5FF] transition-colors"
                 style={{ color: '#666' }}
                 aria-expanded={isExpanded}
@@ -169,16 +173,28 @@ export default function PedidoPad({
         {isBlocked && request.blocked_reason && !compact && (
           <div
             className="mb-2 px-2 py-1 rounded text-[9px]"
-            style={{ background: 'rgba(229,57,53,0.1)', color: '#EF5350', border: '1px solid rgba(229,57,53,0.15)' }}
+            style={{
+              background: 'rgba(229,57,53,0.1)',
+              color: '#EF5350',
+              border: '1px solid rgba(229,57,53,0.15)',
+            }}
           >
-            Bloqueado: {request.blocked_reason.length > 60 ? request.blocked_reason.slice(0, 60) + '...' : request.blocked_reason}
+            Bloqueado:{' '}
+            {request.blocked_reason.length > 60
+              ? request.blocked_reason.slice(0, 60) + '...'
+              : request.blocked_reason}
           </div>
         )}
 
         {/* Info */}
-        <div className={`flex items-center gap-3 ${compact ? 'text-[8px]' : 'text-[9px]'}`} style={{ color: '#949494' }}>
+        <div
+          className={`flex items-center gap-3 ${compact ? 'text-[8px]' : 'text-[9px]'}`}
+          style={{ color: '#949494' }}
+        >
           <span>{request.requester_name}</span>
-          <span style={{ color: '#666' }} aria-hidden="true">|</span>
+          <span style={{ color: '#666' }} aria-hidden="true">
+            |
+          </span>
           <span>
             {isCompleted && request.completed_at
               ? formatLimaDate(request.completed_at)
@@ -303,7 +319,10 @@ function ActionButton({
 
   return (
     <motion.button
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       aria-label={title}
       className={`flex items-center justify-center ${size} rounded-sm`}
       style={{

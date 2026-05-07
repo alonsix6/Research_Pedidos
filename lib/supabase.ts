@@ -13,7 +13,7 @@ const envValidation = validateEnvironment(isServer);
 if (!envValidation.isValid && isServer) {
   console.error(`[Supabase] Missing env vars: ${envValidation.missingVars.join(', ')}`);
 }
-envValidation.warnings.forEach(w => console.warn(`[Supabase] ${w}`));
+envValidation.warnings.forEach((w) => console.warn(`[Supabase] ${w}`));
 
 /**
  * Cliente para el frontend (usa la anon key)
@@ -25,7 +25,9 @@ export const getSupabase = (): SupabaseClient => {
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!url || !key) {
-      throw new Error('Missing Supabase environment variables. Please check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+      throw new Error(
+        'Missing Supabase environment variables. Please check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.'
+      );
     }
 
     supabaseInstance = createClient(url, key);
@@ -43,14 +45,16 @@ export const getSupabaseAdmin = (): SupabaseClient => {
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!url || !key) {
-      throw new Error('Missing Supabase Admin environment variables. Please check NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
+      throw new Error(
+        'Missing Supabase Admin environment variables. Please check NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'
+      );
     }
 
     supabaseAdminInstance = createClient(url, key, {
       auth: {
         autoRefreshToken: false,
-        persistSession: false
-      }
+        persistSession: false,
+      },
     });
   }
   return supabaseAdminInstance;
@@ -58,9 +62,7 @@ export const getSupabaseAdmin = (): SupabaseClient => {
 
 // Helper para obtener el cliente apropiado según el contexto
 export const getSupabaseClient = () => {
-  return isServer && process.env.SUPABASE_SERVICE_ROLE_KEY
-    ? getSupabaseAdmin()
-    : getSupabase();
+  return isServer && process.env.SUPABASE_SERVICE_ROLE_KEY ? getSupabaseAdmin() : getSupabase();
 };
 
 // Export con getter para compatibilidad (lazy initialization)
@@ -69,5 +71,5 @@ export const supabase = new Proxy({} as SupabaseClient, {
   get(_target, prop: string | symbol) {
     const client = getSupabase();
     return client[prop as keyof SupabaseClient];
-  }
+  },
 });
