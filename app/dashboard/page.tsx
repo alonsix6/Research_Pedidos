@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { Request, RequestStatus } from '@/lib/types';
 import { classifyByUrgency } from '@/lib/utils';
@@ -194,9 +194,15 @@ export default function DashboardPage() {
     }),
   });
 
+  // Snapshot del array vivo para que handlers no necesiten depender de
+  // `requests` (cada update realtime regeneraba sus refs y rompía la
+  // memoización de PedidoPad downstream).
+  const requestsRef = useRef(requests);
+  requestsRef.current = requests;
+
   const handleComplete = useCallback(
     async (id: string) => {
-      const request = requests.find((r) => r.id === id);
+      const request = requestsRef.current.find((r) => r.id === id);
       if (!request) return;
 
       // Optimistic update
@@ -217,8 +223,16 @@ export default function DashboardPage() {
         showToast('error', 'Error', 'No se pudo completar el pedido');
       }
     },
-    [requests, optimisticUpdate, playSuccess, showToast]
+    [optimisticUpdate, playSuccess, showToast]
   );
+
+  // Si el request abierto en el detail panel desaparece del array (ej. otro
+  // user lo eliminó), cierra el panel para no dejar un id fantasma en state.
+  useEffect(() => {
+    if (detailRequestId && !requests.some((r) => r.id === detailRequestId)) {
+      setDetailRequestId(null);
+    }
+  }, [requests, detailRequestId]);
 
   const handleEdit = useCallback(
     (request: Request) => {
