@@ -19,7 +19,7 @@ export interface User {
   telegram_username: string | null;
   name: string;
   role: UserRole;
-  team_id: string | null;
+  team_id: string;
   created_at?: string;
 }
 
@@ -43,7 +43,7 @@ export interface Request {
   completed_at: string | null;
   created_by: string;
   updated_at: string;
-  team_id: string | null;
+  team_id: string;
 }
 
 export interface ActivityLog {
@@ -51,9 +51,9 @@ export interface ActivityLog {
   request_id: string;
   user_id: string | null;
   action: string;
-  details: Record<string, unknown>;
+  details: Record<string, unknown> | null;
   created_at: string;
-  team_id: string | null;
+  team_id: string;
 }
 
 export interface Comment {
@@ -62,7 +62,7 @@ export interface Comment {
   user_id: string | null;
   content: string;
   created_at: string;
-  team_id: string | null;
+  team_id: string;
   user?: User;
 }
 
@@ -72,7 +72,7 @@ export interface ConversationState {
   step: string;
   data: NewRequestData | CompleteRequestData;
   updated_at: string;
-  team_id: string | null;
+  team_id: string;
 }
 
 // Tipos extendidos para el dashboard
