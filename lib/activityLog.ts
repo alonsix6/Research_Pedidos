@@ -1,6 +1,5 @@
 import { supabase } from './supabase';
-
-const TEAM_ID = process.env.NEXT_PUBLIC_TEAM_ID;
+import { getRequiredTeamId } from './teamId';
 
 export type ActivityAction =
   | 'created'
@@ -44,7 +43,7 @@ export async function logActivity(
       user_id: userId,
       action,
       details,
-      ...(TEAM_ID && { team_id: TEAM_ID }),
+      team_id: getRequiredTeamId(),
     });
 
     if (error) {
@@ -59,17 +58,12 @@ export async function logActivity(
  * Get activity history for a specific request.
  */
 export async function getActivityLog(requestId: string) {
-  let query = supabase
+  const { data, error } = await supabase
     .from('activity_log')
     .select('*')
     .eq('request_id', requestId)
+    .eq('team_id', getRequiredTeamId())
     .order('created_at', { ascending: false });
-
-  if (TEAM_ID) {
-    query = query.eq('team_id', TEAM_ID);
-  }
-
-  const { data, error } = await query;
   if (error) {
     console.error('Error fetching activity log:', error);
     return [];
@@ -88,9 +82,7 @@ export function getActivityDescription(action: ActivityAction, details: Activity
     case 'status_changed':
       return `Estado cambiado de ${getStatusLabel(details.from_status)} a ${getStatusLabel(details.to_status)}`;
     case 'assigned':
-      return details.new_assigned
-        ? `Asignado a ${details.new_assigned}`
-        : 'Asignación removida';
+      return details.new_assigned ? `Asignado a ${details.new_assigned}` : 'Asignación removida';
     case 'deadline_changed':
       return `Fecha de entrega cambiada`;
     case 'edited':
@@ -104,9 +96,7 @@ export function getActivityDescription(action: ActivityAction, details: Activity
     case 'reopened':
       return 'Pedido reabierto';
     case 'blocked':
-      return details.blocked_reason
-        ? `Bloqueado: ${details.blocked_reason}`
-        : 'Pedido bloqueado';
+      return details.blocked_reason ? `Bloqueado: ${details.blocked_reason}` : 'Pedido bloqueado';
     case 'unblocked':
       return 'Pedido desbloqueado';
     default:

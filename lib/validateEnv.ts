@@ -7,6 +7,7 @@
 const CLIENT_REQUIRED_VARS = [
   'NEXT_PUBLIC_SUPABASE_URL',
   'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+  'NEXT_PUBLIC_TEAM_ID',
 ] as const;
 
 // Variables requeridas solo para el servidor
@@ -15,6 +16,7 @@ const SERVER_REQUIRED_VARS = [
   'TELEGRAM_BOT_TOKEN',
   'TELEGRAM_CHAT_ID',
   'TELEGRAM_WEBHOOK_SECRET',
+  'TEAM_ID',
 ] as const;
 
 interface ValidationResult {
@@ -28,7 +30,9 @@ interface ValidationResult {
  * @param isServer - Si está corriendo en el servidor (no en browser)
  * @returns Resultado de la validación
  */
-export function validateEnvironment(isServer: boolean = typeof window === 'undefined'): ValidationResult {
+export function validateEnvironment(
+  isServer: boolean = typeof window === 'undefined'
+): ValidationResult {
   const missingVars: string[] = [];
   const warnings: string[] = [];
 

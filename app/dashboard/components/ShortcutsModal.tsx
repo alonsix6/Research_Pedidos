@@ -99,7 +99,8 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
             {/* Footer tip */}
             <div className="px-4 pb-4">
               <p className="text-[10px] text-center text-gray-500">
-                Presiona <kbd className="px-1 py-0.5 bg-gray-700 rounded text-[9px]">Alt + /</kbd> para mostrar/ocultar
+                Presiona <kbd className="px-1 py-0.5 bg-gray-700 rounded text-[9px]">Alt + /</kbd>{' '}
+                para mostrar/ocultar
               </p>
             </div>
           </motion.div>

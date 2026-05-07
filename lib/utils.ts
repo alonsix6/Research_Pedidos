@@ -94,11 +94,16 @@ export function calculatePriority(deadline: string): RequestPriority {
  */
 export function getPriorityEmoji(priority: string): string {
   switch (priority) {
-    case 'urgent': return '🔴';
-    case 'high': return '🟡';
-    case 'normal': return '🟢';
-    case 'low': return '⚪';
-    default: return '⚪';
+    case 'urgent':
+      return '🔴';
+    case 'high':
+      return '🟡';
+    case 'normal':
+      return '🟢';
+    case 'low':
+      return '⚪';
+    default:
+      return '⚪';
   }
 }
 
@@ -107,27 +112,43 @@ export function getPriorityEmoji(priority: string): string {
  */
 export function getStatusEmoji(status: string): string {
   switch (status) {
-    case 'pending': return '⏳';
-    case 'in_progress': return '🔵';
-    case 'in_review': return '🟣';
-    case 'blocked': return '🔴';
-    case 'needs_revision': return '🟠';
-    case 'completed': return '✅';
-    case 'cancelled': return '❌';
-    default: return '❓';
+    case 'pending':
+      return '⏳';
+    case 'in_progress':
+      return '🔵';
+    case 'in_review':
+      return '🟣';
+    case 'blocked':
+      return '🔴';
+    case 'needs_revision':
+      return '🟠';
+    case 'completed':
+      return '✅';
+    case 'cancelled':
+      return '❌';
+    default:
+      return '❓';
   }
 }
 
 export function getStatusLabel(status: string): string {
   switch (status) {
-    case 'pending': return 'Pendiente';
-    case 'in_progress': return 'En Progreso';
-    case 'in_review': return 'En Revisión';
-    case 'blocked': return 'Bloqueado';
-    case 'needs_revision': return 'Necesita Revisión';
-    case 'completed': return 'Completado';
-    case 'cancelled': return 'Cancelado';
-    default: return status;
+    case 'pending':
+      return 'Pendiente';
+    case 'in_progress':
+      return 'En Progreso';
+    case 'in_review':
+      return 'En Revisión';
+    case 'blocked':
+      return 'Bloqueado';
+    case 'needs_revision':
+      return 'Necesita Revisión';
+    case 'completed':
+      return 'Completado';
+    case 'cancelled':
+      return 'Cancelado';
+    default:
+      return status;
   }
 }
 
@@ -150,17 +171,17 @@ export function classifyByUrgency(requests: Request[]) {
   const now = new Date();
 
   return {
-    urgent: requests.filter(r => {
+    urgent: requests.filter((r) => {
       const daysLeft = differenceInDays(parseISO(r.deadline), now);
       return daysLeft <= 0 || r.priority === 'urgent';
     }),
-    thisWeek: requests.filter(r => {
+    thisWeek: requests.filter((r) => {
       const daysLeft = differenceInDays(parseISO(r.deadline), now);
       return daysLeft > 0 && daysLeft <= 7;
     }),
-    later: requests.filter(r => {
+    later: requests.filter((r) => {
       const daysLeft = differenceInDays(parseISO(r.deadline), now);
       return daysLeft > 7;
-    })
+    }),
   };
 }

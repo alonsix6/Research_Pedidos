@@ -1,10 +1,10 @@
-import type { Config } from "tailwindcss";
+import type { Config } from 'tailwindcss';
 
 const config: Config = {
   content: [
-    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    './pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
@@ -23,7 +23,7 @@ const config: Config = {
         mono: ['JetBrains Mono', 'SF Mono', 'ui-monospace', 'monospace'],
       },
       boxShadow: {
-        'op1': '0 2px 4px rgba(0, 0, 0, 0.1)',
+        op1: '0 2px 4px rgba(0, 0, 0, 0.1)',
         'op1-pressed': 'inset 0 2px 4px rgba(0, 0, 0, 0.2)',
       },
     },

@@ -3,6 +3,7 @@
 ## Investigacion y Analisis
 
 ### Fuentes de Investigacion
+
 - [Teenage Engineering Design Philosophy](https://medium.com/@ihorkostiuk.design/the-product-design-of-teenage-engineering-why-it-works-71071f359a97)
 - [Teenage Engineering Color Palette](https://www.color-hex.com/color-palette/1057593)
 - [DSEG Seven Segment Fonts](https://www.keshikan.net/fonts-e.html)
@@ -44,34 +45,35 @@ Analizando las imagenes proporcionadas, identifico estos elementos distintivos:
 ## 1. PALETA DE COLORES AUTENTICA
 
 ### Colores Principales (extraidos del K.O. II)
+
 ```css
 :root {
   /* Cuerpo del dispositivo */
-  --te-body: #C8C8C8;           /* Gris metalico claro */
-  --te-body-dark: #A0A0A0;      /* Gris metalico oscuro */
-  --te-body-highlight: #E0E0E0; /* Highlight metalico */
+  --te-body: #c8c8c8; /* Gris metalico claro */
+  --te-body-dark: #a0a0a0; /* Gris metalico oscuro */
+  --te-body-highlight: #e0e0e0; /* Highlight metalico */
 
   /* Pantalla */
-  --te-screen-bg: #1A1A1A;      /* Negro profundo de pantalla */
-  --te-screen-glow: #0D0D0D;    /* Borde interno de pantalla */
+  --te-screen-bg: #1a1a1a; /* Negro profundo de pantalla */
+  --te-screen-glow: #0d0d0d; /* Borde interno de pantalla */
 
   /* Colores de acento (del display) */
-  --te-orange: #FF4500;         /* Naranja principal */
-  --te-red: #CE2021;            /* Rojo indicador */
-  --te-green: #1AA167;          /* Verde */
-  --te-blue: #1270B8;           /* Azul */
-  --te-yellow: #FFC003;         /* Amarillo */
-  --te-cyan: #00D4FF;           /* Cyan para display */
+  --te-orange: #ff4500; /* Naranja principal */
+  --te-red: #ce2021; /* Rojo indicador */
+  --te-green: #1aa167; /* Verde */
+  --te-blue: #1270b8; /* Azul */
+  --te-yellow: #ffc003; /* Amarillo */
+  --te-cyan: #00d4ff; /* Cyan para display */
 
   /* Botones */
-  --te-button-black: #2A2A2A;   /* Botones negros */
-  --te-button-white: #F5F5F5;   /* Botones blancos */
-  --te-button-grey: #4A4A4A;    /* Botones grises */
+  --te-button-black: #2a2a2a; /* Botones negros */
+  --te-button-white: #f5f5f5; /* Botones blancos */
+  --te-button-grey: #4a4a4a; /* Botones grises */
 
   /* Texto */
-  --te-label: #FF4500;          /* Labels naranjas */
-  --te-text-dark: #1A1A1A;      /* Texto oscuro */
-  --te-text-light: #E5E5E5;     /* Texto claro (en pantalla) */
+  --te-label: #ff4500; /* Labels naranjas */
+  --te-text-dark: #1a1a1a; /* Texto oscuro */
+  --te-text-light: #e5e5e5; /* Texto claro (en pantalla) */
 }
 ```
 
@@ -80,6 +82,7 @@ Analizando las imagenes proporcionadas, identifico estos elementos distintivos:
 ## 2. ESTRUCTURA DEL DISPOSITIVO
 
 ### Layout Principal
+
 El dashboard sera un "dispositivo virtual" completo:
 
 ```
@@ -119,6 +122,7 @@ El dashboard sera un "dispositivo virtual" completo:
 ## 3. COMPONENTES A IMPLEMENTAR
 
 ### 3.1 DeviceFrame (Contenedor Principal)
+
 ```
 Caracteristicas:
 - Bordes redondeados muy sutiles (2-4px)
@@ -128,6 +132,7 @@ Caracteristicas:
 ```
 
 ### 3.2 TopBar (Barra de Puertos)
+
 ```
 Elementos:
 - Indicadores tipo LED (OUTPUT, INPUT, SYNC, MIDI)
@@ -136,6 +141,7 @@ Elementos:
 ```
 
 ### 3.3 SpeakerGrille (Rejilla de Altavoz)
+
 ```
 Patron:
 - Grid de circulos pequenos
@@ -145,6 +151,7 @@ Patron:
 ```
 
 ### 3.4 ScreenDisplay (Pantalla Principal)
+
 ```
 Elementos:
 - Fondo negro con borde biselado
@@ -155,6 +162,7 @@ Elementos:
 ```
 
 ### 3.5 Knob3D (Perillas Rotativas)
+
 ```
 Caracteristicas:
 - Forma circular con gradiente radial
@@ -165,6 +173,7 @@ Caracteristicas:
 ```
 
 ### 3.6 Button3D (Botones Fisicos)
+
 ```
 Tipos:
 a) Boton Negro Grande (como numeros)
@@ -184,6 +193,7 @@ d) Boton pequeno cuadrado (como A,B,C,D)
 ```
 
 ### 3.7 Slider3D (Fader de Volumen)
+
 ```
 Caracteristicas:
 - Track vertical con canal empotrado
@@ -192,6 +202,7 @@ Caracteristicas:
 ```
 
 ### 3.8 PedidoCard3D (Cards como Pads)
+
 ```
 Estilo:
 - Similar a los pads del sampler
@@ -205,52 +216,55 @@ Estilo:
 ## 4. EFECTOS CSS CLAVE
 
 ### 4.1 Textura Metalica
+
 ```css
 .metallic-surface {
   background: linear-gradient(
     135deg,
-    #D8D8D8 0%,
-    #C0C0C0 25%,
-    #D0D0D0 50%,
-    #B8B8B8 75%,
-    #C8C8C8 100%
+    #d8d8d8 0%,
+    #c0c0c0 25%,
+    #d0d0d0 50%,
+    #b8b8b8 75%,
+    #c8c8c8 100%
   );
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.5),
-    inset 0 -1px 0 rgba(0,0,0,0.1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
 }
 ```
 
 ### 4.2 Boton 3D Fisico
+
 ```css
 .button-3d {
-  background: linear-gradient(180deg, #3A3A3A 0%, #2A2A2A 100%);
+  background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%);
   box-shadow:
-    0 4px 0 #1A1A1A,           /* Sombra inferior (profundidad) */
-    0 6px 8px rgba(0,0,0,0.3), /* Sombra difusa */
-    inset 0 1px 0 rgba(255,255,255,0.1); /* Highlight superior */
+    0 4px 0 #1a1a1a,
+    /* Sombra inferior (profundidad) */ 0 6px 8px rgba(0, 0, 0, 0.3),
+    /* Sombra difusa */ inset 0 1px 0 rgba(255, 255, 255, 0.1); /* Highlight superior */
   transform: translateY(0);
   transition: all 0.05s ease;
 }
 
 .button-3d:active {
   box-shadow:
-    0 1px 0 #1A1A1A,
-    0 2px 4px rgba(0,0,0,0.2),
-    inset 0 1px 0 rgba(255,255,255,0.1);
+    0 1px 0 #1a1a1a,
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   transform: translateY(3px);
 }
 ```
 
 ### 4.3 Pantalla LCD
+
 ```css
 .lcd-screen {
-  background: #1A1A1A;
-  border: 3px solid #0D0D0D;
+  background: #1a1a1a;
+  border: 3px solid #0d0d0d;
   box-shadow:
-    inset 0 0 20px rgba(0,0,0,0.5),
-    inset 0 0 3px rgba(0,212,255,0.1), /* Glow sutil */
-    0 2px 4px rgba(0,0,0,0.3);
+    inset 0 0 20px rgba(0, 0, 0, 0.5),
+    inset 0 0 3px rgba(0, 212, 255, 0.1),
+    /* Glow sutil */ 0 2px 4px rgba(0, 0, 0, 0.3);
   border-radius: 4px;
 }
 
@@ -263,40 +277,36 @@ Estilo:
     0deg,
     transparent,
     transparent 2px,
-    rgba(0,0,0,0.1) 2px,
-    rgba(0,0,0,0.1) 4px
+    rgba(0, 0, 0, 0.1) 2px,
+    rgba(0, 0, 0, 0.1) 4px
   );
   pointer-events: none;
 }
 ```
 
 ### 4.4 Speaker Grille
+
 ```css
 .speaker-grille {
-  background:
-    radial-gradient(circle at center, #2A2A2A 35%, transparent 35%);
+  background: radial-gradient(circle at center, #2a2a2a 35%, transparent 35%);
   background-size: 8px 8px;
-  background-color: #1A1A1A;
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+  background-color: #1a1a1a;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 ```
 
 ### 4.5 Knob Rotativo
+
 ```css
 .knob {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: radial-gradient(
-    circle at 30% 30%,
-    #F0F0F0 0%,
-    #D0D0D0 50%,
-    #A0A0A0 100%
-  );
+  background: radial-gradient(circle at 30% 30%, #f0f0f0 0%, #d0d0d0 50%, #a0a0a0 100%);
   box-shadow:
-    0 4px 8px rgba(0,0,0,0.3),
-    inset 0 2px 4px rgba(255,255,255,0.5),
-    inset 0 -2px 4px rgba(0,0,0,0.2);
+    0 4px 8px rgba(0, 0, 0, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.5),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .knob::after {
@@ -305,7 +315,7 @@ Estilo:
   position: absolute;
   width: 3px;
   height: 12px;
-  background: #1A1A1A;
+  background: #1a1a1a;
   top: 6px;
   left: 50%;
   transform: translateX(-50%);
@@ -318,6 +328,7 @@ Estilo:
 ## 5. TIPOGRAFIA
 
 ### Fuentes a Usar
+
 ```
 1. DSEG7 Classic - Para displays numericos (stats, contadores)
    URL: https://www.keshikan.net/fonts-e.html
@@ -330,6 +341,7 @@ Estilo:
 ```
 
 ### Jerarquia Tipografica
+
 ```
 - Titulo dispositivo: 18px, bold, uppercase, tracking wide
 - Stats display: 32-48px, DSEG7, peso normal
@@ -343,7 +355,9 @@ Estilo:
 ## 6. ICONOGRAFIA
 
 ### Reemplazar Lucide por Iconos Pixelados
+
 Para mayor autenticidad, crear iconos estilo 8-bit/pixel art:
+
 ```
 Opciones:
 a) Usar CSS para dibujar iconos simples con box-shadow pixel art
@@ -352,6 +366,7 @@ c) Usar una fuente de iconos pixel (como "Press Start 2P" icons)
 ```
 
 ### Iconos Necesarios
+
 ```
 - Circulo lleno (prioridad)
 - Play/Pause
@@ -398,41 +413,48 @@ app/
 ## 8. PLAN DE IMPLEMENTACION
 
 ### Fase 1: Fundamentos (CSS Base)
+
 1. Actualizar variables CSS con nueva paleta
 2. Agregar fuente DSEG7 para displays
 3. Crear clases base para texturas (metalica, LCD, etc)
 4. Definir sombras y efectos 3D base
 
 ### Fase 2: Componentes Atomicos
+
 1. Button3D con variantes (negro, naranja, blanco)
 2. Knob3D con indicador
 3. Indicadores LED
 4. Labels industriales
 
 ### Fase 3: Estructura del Dispositivo
+
 1. DeviceFrame con textura metalica
 2. TopBar con puertos/LEDs
 3. SpeakerGrille con patron de puntos
 4. ScreenDisplay con efecto LCD
 
 ### Fase 4: Pantalla y Stats
+
 1. Display de stats con font 7-segmentos
 2. Iconos de estado pixelados
 3. Indicadores de seccion
 4. Animaciones de "parpadeo" LCD
 
 ### Fase 5: Cards de Pedidos
+
 1. PedidoPad con efecto 3D
 2. Estados (hover, active, completed)
 3. Indicadores LED de prioridad
 4. Integracion con grid
 
 ### Fase 6: Modal Actualizado
+
 1. Modal como "overlay de pantalla"
 2. Formulario con inputs estilo LCD
 3. Botones consistentes con el tema
 
 ### Fase 7: Animaciones y Polish
+
 1. Transiciones suaves
 2. Feedback visual al interactuar
 3. Estados de loading
@@ -443,16 +465,19 @@ app/
 ## 9. CONSIDERACIONES TECNICAS
 
 ### Performance
+
 - Usar CSS transforms en lugar de cambios de layout
 - Limitar uso de box-shadow complejos en elementos repetidos
 - Considerar will-change para animaciones frecuentes
 
 ### Accesibilidad
+
 - Mantener contraste suficiente en textos
 - Focus states visibles
 - Keyboard navigation funcional
 
 ### Responsive
+
 - En mobile: simplificar a vista mas plana
 - Mantener funcionalidad core
 - Adaptar grid de cards
@@ -513,6 +538,7 @@ app/
 Este plan cubre todos los aspectos para transformar el dashboard en una experiencia visual autentica inspirada en el Teenage Engineering K.O. II / EP-133.
 
 Elementos diferenciadores:
+
 - Textura metalica realista
 - Botones con volumen fisico 3D
 - Pantalla LCD con font de segmentos

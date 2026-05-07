@@ -11,12 +11,7 @@ interface PedidoCardProps {
   onDelete?: (id: string) => void;
 }
 
-export default function PedidoCard({
-  request,
-  onComplete,
-  onEdit,
-  onDelete
-}: PedidoCardProps) {
+export default function PedidoCard({ request, onComplete, onEdit, onDelete }: PedidoCardProps) {
   const priorityIcon = getPriorityIcon(request.priority);
   const daysLeft = formatDaysLeft(request.deadline);
 
@@ -26,13 +21,9 @@ export default function PedidoCard({
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             {priorityIcon}
-            <h3 className="font-bold text-base uppercase">
-              {request.client}
-            </h3>
+            <h3 className="font-bold text-base uppercase">{request.client}</h3>
           </div>
-          <p className="text-sm text-op1-text mb-2">
-            {request.description}
-          </p>
+          <p className="text-sm text-op1-text mb-2">{request.description}</p>
         </div>
       </div>
 
@@ -46,25 +37,23 @@ export default function PedidoCard({
         <div>
           <span className="uppercase tracking-wide">Asignado:</span>
           <br />
-          <span className="text-op1-text">
-            {request.assigned_to || 'Sin asignar'}
-          </span>
+          <span className="text-op1-text">{request.assigned_to || 'Sin asignar'}</span>
         </div>
         <div>
           <span className="uppercase tracking-wide">Deadline:</span>
           <br />
-          <span className="text-op1-text">
-            {formatLimaDate(request.deadline)}
-          </span>
+          <span className="text-op1-text">{formatLimaDate(request.deadline)}</span>
         </div>
         <div>
           <span className="uppercase tracking-wide">Tiempo:</span>
           <br />
-          <span className={`text-op1-text ${
-            daysLeft.includes('Atrasado') || daysLeft.includes('HOY')
-              ? 'text-op1-accent font-bold'
-              : ''
-          }`}>
+          <span
+            className={`text-op1-text ${
+              daysLeft.includes('Atrasado') || daysLeft.includes('HOY')
+                ? 'text-op1-accent font-bold'
+                : ''
+            }`}
+          >
             {daysLeft}
           </span>
         </div>

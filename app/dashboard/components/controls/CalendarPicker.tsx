@@ -49,9 +49,7 @@ export default function CalendarPicker({
   });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const selectedDate = value
-    ? parse(value, 'yyyy-MM-dd', new Date())
-    : null;
+  const selectedDate = value ? parse(value, 'yyyy-MM-dd', new Date()) : null;
 
   const today = startOfDay(new Date());
   const min = minDate ? startOfDay(minDate) : today;
@@ -103,9 +101,7 @@ export default function CalendarPicker({
 
   const isPrevDisabled = isBefore(endOfMonth(subMonths(viewDate, 1)), min);
 
-  const displayValue = selectedDate
-    ? format(selectedDate, 'dd/MM/yyyy')
-    : '';
+  const displayValue = selectedDate ? format(selectedDate, 'dd/MM/yyyy') : '';
 
   return (
     <div ref={containerRef} className="relative">
@@ -124,7 +120,11 @@ export default function CalendarPicker({
         <span style={{ color: displayValue ? 'var(--te-cyan)' : '#3A3A3A' }}>
           {displayValue || 'Seleccionar fecha...'}
         </span>
-        <Calendar size={14} style={{ color: 'var(--te-orange)', flexShrink: 0 }} aria-hidden="true" />
+        <Calendar
+          size={14}
+          style={{ color: 'var(--te-orange)', flexShrink: 0 }}
+          aria-hidden="true"
+        />
       </button>
 
       {/* Calendar Dropdown */}
@@ -219,17 +219,9 @@ export default function CalendarPicker({
                       height: '28px',
                       fontSize: '11px',
                       fontWeight: isSelected ? 600 : 400,
-                      color: isDisabled
-                        ? '#1A1A1A'
-                        : isSelected
-                        ? '#FFFFFF'
-                        : 'var(--te-cyan)',
-                      background: isSelected
-                        ? 'var(--te-orange)'
-                        : 'transparent',
-                      boxShadow: isSelected
-                        ? '0 0 8px rgba(255, 69, 0, 0.4)'
-                        : 'none',
+                      color: isDisabled ? '#1A1A1A' : isSelected ? '#FFFFFF' : 'var(--te-cyan)',
+                      background: isSelected ? 'var(--te-orange)' : 'transparent',
+                      boxShadow: isSelected ? '0 0 8px rgba(255, 69, 0, 0.4)' : 'none',
                       cursor: isDisabled ? 'not-allowed' : 'pointer',
                     }}
                     onMouseEnter={(e) => {

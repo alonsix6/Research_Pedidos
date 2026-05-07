@@ -19,19 +19,36 @@
 
 ## Paso 2: Variables de Entorno
 
-En Netlify Dashboard → Site settings → Environment variables, agregar:
+En Netlify Dashboard → Site settings → Environment variables, agregar **todas** las siguientes. Si falta alguna, la app **falla en runtime** (no en build) con un error explícito de `validateEnv.ts`.
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=<tu-supabase-project-url>
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<tu-supabase-anon-key>
+NEXT_PUBLIC_TEAM_ID=<uuid-del-team-en-tabla-teams>
 SUPABASE_SERVICE_ROLE_KEY=<tu-supabase-service-role-key>
+TEAM_ID=<mismo-uuid-que-NEXT_PUBLIC_TEAM_ID>
 TELEGRAM_BOT_TOKEN=<tu-telegram-bot-token>
 TELEGRAM_CHAT_ID=<tu-telegram-chat-id>
+TELEGRAM_WEBHOOK_SECRET=<openssl rand -hex 32>
 ```
 
 **Nota:** Obtén estos valores de:
+
 - Supabase: Project Settings → API → Project URL y API Keys
 - Telegram: @BotFather (bot token) y chat ID del grupo
+- `NEXT_PUBLIC_TEAM_ID` y `TEAM_ID` deben ser **el mismo UUID** (uno viaja al browser, el otro queda en server)
+- `TELEGRAM_WEBHOOK_SECRET`: generar con `openssl rand -hex 32`. Sin él, el webhook rechaza los requests de Telegram con 401.
+
+### GitHub Actions (cron jobs)
+
+En GitHub repo → Settings → Secrets and variables → Actions, replicar todas las anteriores **excepto** `SITE_URL` que también hace falta para `check-webhook`:
+
+```
+NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, TELEGRAM_BOT_TOKEN,
+TELEGRAM_CHAT_ID, TELEGRAM_WEBHOOK_SECRET, TEAM_ID, SITE_URL
+```
+
+`SITE_URL` = la URL pública de Netlify (ej. `https://research-pedidos.netlify.app`).
 
 ## Paso 3: Deploy
 
@@ -50,6 +67,7 @@ curl -X POST https://api.telegram.org/bot<TU_BOT_TOKEN>/setWebhook \
 ```
 
 Reemplazar:
+
 - `<TU_BOT_TOKEN>` con tu token de Telegram Bot
 - `TU-SITIO` con tu URL de Netlify
 

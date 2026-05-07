@@ -1,7 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { ConversationStep, NewRequestData, CompleteRequestData } from './types';
-
-const TEAM_ID = process.env.TEAM_ID;
+import { getRequiredTeamId } from './teamId';
+import { escapeMd } from './telegramMarkdown';
 
 /**
  * Helper para gestionar el estado de conversaciones
@@ -21,17 +21,13 @@ export async function getConversationState(
   userId: string,
   supabase: SupabaseClient
 ): Promise<ConversationState | null> {
-  let query = supabase
+  const { data, error } = await supabase
     .from('conversation_state')
     .select('*')
     .eq('chat_id', chatId.toString())
-    .eq('user_id', userId.toString());
-
-  if (TEAM_ID) {
-    query = query.eq('team_id', TEAM_ID);
-  }
-
-  const { data, error } = await query.single();
+    .eq('user_id', userId.toString())
+    .eq('team_id', getRequiredTeamId())
+    .single();
 
   if (error || !data) {
     return null;
@@ -52,16 +48,14 @@ export async function saveConversationState(
   state: ConversationState,
   supabase: SupabaseClient
 ): Promise<void> {
-  const { error } = await supabase
-    .from('conversation_state')
-    .upsert({
-      chat_id: state.chatId,
-      user_id: state.userId,
-      step: state.step,
-      data: state.data,
-      updated_at: new Date().toISOString(),
-      ...(TEAM_ID && { team_id: TEAM_ID }),
-    });
+  const { error } = await supabase.from('conversation_state').upsert({
+    chat_id: state.chatId,
+    user_id: state.userId,
+    step: state.step,
+    data: state.data,
+    updated_at: new Date().toISOString(),
+    team_id: getRequiredTeamId(),
+  });
 
   if (error) {
     throw error;
@@ -76,17 +70,12 @@ export async function clearConversationState(
   userId: string,
   supabase: SupabaseClient
 ): Promise<void> {
-  let deleteQuery = supabase
+  await supabase
     .from('conversation_state')
     .delete()
     .eq('chat_id', chatId.toString())
-    .eq('user_id', userId.toString());
-
-  if (TEAM_ID) {
-    deleteQuery = deleteQuery.eq('team_id', TEAM_ID);
-  }
-
-  await deleteQuery;
+    .eq('user_id', userId.toString())
+    .eq('team_id', getRequiredTeamId());
 }
 
 /**
@@ -96,30 +85,31 @@ export const conversationMessages = {
   start: '📝 *Nuevo pedido para el equipo*\n\n¿Para qué *cliente/cuenta*?',
 
   client: (client: string) =>
-    `✅ Cliente: *${client}*\n\n¿Qué necesitan exactamente? (Describe el pedido)`,
+    `✅ Cliente: *${escapeMd(client)}*\n\n¿Qué necesitan exactamente? (Describe el pedido)`,
 
   description: (desc: string) =>
-    `✅ Pedido: ${desc}\n\n¿Quién lo solicitó? (Nombre y cargo, ej: "Andrea, ejecutiva")`,
+    `✅ Pedido: ${escapeMd(desc)}\n\n¿Quién lo solicitó? (Nombre y cargo, ej: "Andrea, ejecutiva")`,
 
   requester: (requester: string) =>
-    `✅ Solicitante: ${requester}\n\n¿Fecha de entrega?\nPuedes usar:\n• Fecha: "25/12" o "25/12/2024"\n• Relativo: "hoy", "mañana", "en 3 días"`,
+    `✅ Solicitante: ${escapeMd(requester)}\n\n¿Fecha de entrega?\nPuedes usar:\n• Fecha: "25/12" o "25/12/2024"\n• Relativo: "hoy", "mañana", "en 3 días"`,
 
   deadline: (deadline: string, formatted: string) =>
-    `✅ Deadline: ${formatted}\n\n¿Quién se encarga?\n1️⃣ Sol\n2️⃣ Estef\n3️⃣ Alonso\n4️⃣ Mellanie\n5️⃣ Sin asignar\n\nResponde con el número.`,
+    `✅ Deadline: ${escapeMd(formatted)}\n\n¿Quién se encarga?\n1️⃣ Sol\n2️⃣ Estef\n3️⃣ Alonso\n4️⃣ Mellanie\n5️⃣ Sin asignar\n\nResponde con el número.`,
 
   summary: (data: NewRequestData, assigned: string, priority: string, emoji: string) => {
     const parts = data.requester_name?.split(',') || ['', ''];
     const name = parts[0]?.trim() || data.requester_name;
     const role = parts[1]?.trim() || '';
 
-    return `✅ *Pedido creado!*\n\n📋 *Resumen:*\nCliente: ${data.client}\nPedido: ${data.description}\nSolicitante: ${name}${role ? ` (${role})` : ''}\nDeadline: ${data.deadline}\nAsignado: ${assigned}\nPrioridad: ${emoji} ${priority}\n\n✨ El pedido ha sido guardado y todos pueden verlo con /ver`;
+    return `✅ *Pedido creado!*\n\n📋 *Resumen:*\nCliente: ${escapeMd(data.client)}\nPedido: ${escapeMd(data.description)}\nSolicitante: ${escapeMd(name || '')}${role ? ` (${escapeMd(role)})` : ''}\nDeadline: ${escapeMd(data.deadline)}\nAsignado: ${escapeMd(assigned)}\nPrioridad: ${emoji} ${priority}\n\n✨ El pedido ha sido guardado y todos pueden verlo con /ver`;
   },
 
   cancel: '❌ Pedido cancelado. Usa /nuevopedido cuando quieras crear uno nuevo.',
 
   error: '⚠️ No entendí esa respuesta. Por favor intenta de nuevo.',
 
-  invalidDate: '⚠️ No pude entender esa fecha. Usa formatos como:\n• "25/12" o "25/12/2024"\n• "hoy", "mañana"\n• "en 3 días"',
+  invalidDate:
+    '⚠️ No pude entender esa fecha. Usa formatos como:\n• "25/12" o "25/12/2024"\n• "hoy", "mañana"\n• "en 3 días"',
 
   invalidAssignment: '⚠️ Por favor responde con 1, 2, 3, 4 o 5.',
 };

@@ -6,7 +6,8 @@ import { BarChart3, MessageSquare, ArrowRight, Zap, Clock, Users } from 'lucide-
 
 export default function Home() {
   return (
-    <main className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+    <main
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
       style={{
         background: 'linear-gradient(180deg, #E8E8E8 0%, #D0D0D0 50%, #C0C0C0 100%)',
       }}
@@ -48,7 +49,9 @@ export default function Home() {
           >
             <div className="flex items-center gap-3">
               <div className="led led-green" />
-              <span className="text-[10px] font-bold text-gray-400 tracking-wider">SYSTEM READY</span>
+              <span className="text-[10px] font-bold text-gray-400 tracking-wider">
+                SYSTEM READY
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <div className="led led-orange" />
@@ -79,10 +82,7 @@ export default function Home() {
                 <BarChart3 size={36} className="text-white" strokeWidth={2.5} />
               </div>
 
-              <h1
-                className="text-3xl font-black tracking-tight mb-2"
-                style={{ color: '#1A1A1A' }}
-              >
+              <h1 className="text-3xl font-black tracking-tight mb-2" style={{ color: '#1A1A1A' }}>
                 RESET R&A
               </h1>
               <p
@@ -192,7 +192,9 @@ export default function Home() {
                   <MessageSquare size={18} className="text-[#00E5FF]" />
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-gray-600 mb-0.5">Bot de Telegram</p>
+                  <p className="text-[10px] uppercase tracking-wider text-gray-600 mb-0.5">
+                    Bot de Telegram
+                  </p>
                   <p className="text-xs font-bold text-gray-800">@Research_Pedidos_bot</p>
                 </div>
               </div>

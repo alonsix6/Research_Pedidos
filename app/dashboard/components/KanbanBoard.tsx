@@ -2,30 +2,26 @@
 
 import { useMemo } from 'react';
 import { Request, RequestStatus } from '@/lib/types';
-import { kanbanStatuses, statusConfig, canTransition, getStatusConfig } from '@/lib/statusMachine';
+import { kanbanStatuses, getStatusConfig } from '@/lib/statusMachine';
 import { formatDaysLeft } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '@/lib/supabase';
-import { logActivity } from '@/lib/activityLog';
-import StatusBadge from './StatusBadge';
-import { ExternalLink, Pencil } from 'lucide-react';
-
-const TEAM_ID = process.env.NEXT_PUBLIC_TEAM_ID;
 
 interface KanbanBoardProps {
   requests: Request[];
   onOpenDetail?: (request: Request) => void;
   onEdit?: (request: Request) => void;
-  onStatusChange?: (id: string, newStatus: RequestStatus) => void;
   teamMembers?: Array<{ id: string; name: string }>;
   compact?: boolean;
 }
+
+// Nota: el cambio de estado desde el Kanban (drag entre columnas) es feature
+// pendiente. La prop `onStatusChange` y los imports asociados se quitaron por
+// ahora; el card abre el detail panel y el cambio de estado se hace allí.
 
 export default function KanbanBoard({
   requests,
   onOpenDetail,
   onEdit,
-  onStatusChange,
   teamMembers = [],
   compact = false,
 }: KanbanBoardProps) {
@@ -74,10 +70,7 @@ export default function KanbanBoard({
                 }}
               >
                 <div className="flex items-center gap-2">
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ background: config.color }}
-                  />
+                  <div className="w-2 h-2 rounded-full" style={{ background: config.color }} />
                   <span
                     className="text-[10px] font-bold uppercase tracking-wider"
                     style={{ color: config.textColor }}
@@ -113,9 +106,7 @@ export default function KanbanBoard({
 
                 {items.length === 0 && (
                   <div className="text-center py-6">
-                    <p className="text-[9px] text-[#555] uppercase tracking-wider">
-                      Sin pedidos
-                    </p>
+                    <p className="text-[9px] text-[#555] uppercase tracking-wider">Sin pedidos</p>
                   </div>
                 )}
               </div>
@@ -144,12 +135,13 @@ function KanbanCard({
   const isUrgent = daysLeft.includes('Atrasado') || daysLeft.includes('HOY');
   const assignedName = teamMembers.find((m) => m.id === request.assigned_to)?.name;
 
-  const priorityColor = {
-    urgent: '#E53935',
-    high: '#FFD600',
-    normal: '#00C853',
-    low: '#666666',
-  }[request.priority] || '#666666';
+  const priorityColor =
+    {
+      urgent: '#E53935',
+      high: '#FFD600',
+      normal: '#00C853',
+      low: '#666666',
+    }[request.priority] || '#666666';
 
   return (
     <motion.div
@@ -184,16 +176,11 @@ function KanbanCard({
 
       {/* Footer */}
       <div className="flex items-center justify-between">
-        <span
-          className="text-[8px] font-medium"
-          style={{ color: isUrgent ? '#E53935' : '#666' }}
-        >
+        <span className="text-[8px] font-medium" style={{ color: isUrgent ? '#E53935' : '#666' }}>
           {daysLeft}
         </span>
         {assignedName && (
-          <span className="text-[8px] text-[#666] truncate max-w-[60px]">
-            {assignedName}
-          </span>
+          <span className="text-[8px] text-[#666] truncate max-w-[60px]">{assignedName}</span>
         )}
       </div>
 

@@ -1,9 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState, type CSSProperties } from 'react';
 import { Request } from '@/lib/types';
 import { formatLimaDate, formatDaysLeft } from '@/lib/utils';
-import { Check, Pencil, Trash2, GripVertical, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import {
+  Check,
+  Pencil,
+  Trash2,
+  GripVertical,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { padVariants, springs } from '@/lib/animations';
 import { useSortable } from '@dnd-kit/sortable';
@@ -20,12 +28,18 @@ interface PedidoPadProps {
   isDraggable?: boolean;
   /** Start collapsed - useful for large lists */
   defaultCollapsed?: boolean;
+  /**
+   * Cuando es true, la card hace un pulse visual de ~600ms para señalar que
+   * llegó un evento realtime sobre este pedido (otro usuario lo modificó).
+   * Lo provee `useRealtimeRequests().recentlyUpdatedIds`.
+   */
+  pulse?: boolean;
 }
 
 // Threshold for auto-truncating long descriptions
 const DESCRIPTION_TRUNCATE_LENGTH = 100;
 
-export default function PedidoPad({
+function PedidoPadInner({
   request,
   onComplete,
   onEdit,
@@ -34,6 +48,7 @@ export default function PedidoPad({
   compact = false,
   isDraggable = false,
   defaultCollapsed = false,
+  pulse = false,
 }: PedidoPadProps) {
   const [isExpanded, setIsExpanded] = useState(!defaultCollapsed);
   const daysLeft = formatDaysLeft(request.deadline);
@@ -43,24 +58,33 @@ export default function PedidoPad({
   const isBlocked = request.status === 'blocked';
 
   // DnD Kit sortable
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: request.id,
     disabled: !isDraggable || isCompleted,
   });
+
+  // Pulse + drag shadows combinados. boxShadow inline pisa la clase Tailwind
+  // shadow-2xl, así que cuando hay drag además de pulse los componemos.
+  const PULSE_SHADOW = '0 0 0 2px rgba(34, 211, 238, 0.55), 0 0 18px rgba(34, 211, 238, 0.35)';
+  const DRAG_SHADOW = '0 25px 50px -12px rgba(0, 0, 0, 0.6)';
+  const composedShadow =
+    pulse && isDragging
+      ? `${PULSE_SHADOW}, ${DRAG_SHADOW}`
+      : pulse
+        ? PULSE_SHADOW
+        : isDragging
+          ? DRAG_SHADOW
+          : undefined;
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 50 : 'auto',
-  };
+    boxShadow: composedShadow,
+    transitionProperty: 'box-shadow',
+    transitionDuration: '350ms',
+  } as CSSProperties;
 
   return (
     <motion.article
@@ -76,8 +100,8 @@ export default function PedidoPad({
       initial="initial"
       animate="animate"
       exit="exit"
-      whileHover={!isDragging ? "hover" : undefined}
-      whileTap={!isDragging ? "tap" : undefined}
+      whileHover={!isDragging ? 'hover' : undefined}
+      whileTap={!isDragging ? 'tap' : undefined}
       layout
       aria-label={`Pedido de ${request.client}: ${request.description.slice(0, 50)}${request.description.length > 50 ? '...' : ''}`}
       onClick={(e) => {
@@ -143,7 +167,10 @@ export default function PedidoPad({
             </AnimatePresence>
             {isLongDescription && (
               <button
-                onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded(!isExpanded);
+                }}
                 className="flex items-center gap-0.5 text-[9px] mt-1 hover:text-[#00E5FF] transition-colors"
                 style={{ color: '#666' }}
                 aria-expanded={isExpanded}
@@ -169,16 +196,28 @@ export default function PedidoPad({
         {isBlocked && request.blocked_reason && !compact && (
           <div
             className="mb-2 px-2 py-1 rounded text-[9px]"
-            style={{ background: 'rgba(229,57,53,0.1)', color: '#EF5350', border: '1px solid rgba(229,57,53,0.15)' }}
+            style={{
+              background: 'rgba(229,57,53,0.1)',
+              color: '#EF5350',
+              border: '1px solid rgba(229,57,53,0.15)',
+            }}
           >
-            Bloqueado: {request.blocked_reason.length > 60 ? request.blocked_reason.slice(0, 60) + '...' : request.blocked_reason}
+            Bloqueado:{' '}
+            {request.blocked_reason.length > 60
+              ? request.blocked_reason.slice(0, 60) + '...'
+              : request.blocked_reason}
           </div>
         )}
 
         {/* Info */}
-        <div className={`flex items-center gap-3 ${compact ? 'text-[8px]' : 'text-[9px]'}`} style={{ color: '#949494' }}>
+        <div
+          className={`flex items-center gap-3 ${compact ? 'text-[8px]' : 'text-[9px]'}`}
+          style={{ color: '#949494' }}
+        >
           <span>{request.requester_name}</span>
-          <span style={{ color: '#666' }} aria-hidden="true">|</span>
+          <span style={{ color: '#666' }} aria-hidden="true">
+            |
+          </span>
           <span>
             {isCompleted && request.completed_at
               ? formatLimaDate(request.completed_at)
@@ -270,6 +309,11 @@ export default function PedidoPad({
   );
 }
 
+// memo: solo re-render si cambian props. Crítico cuando llega un evento
+// realtime: si solo cambió un request, los demás cards no necesitan re-render.
+const PedidoPad = memo(PedidoPadInner);
+export default PedidoPad;
+
 function ActionButton({
   onClick,
   color,
@@ -303,7 +347,10 @@ function ActionButton({
 
   return (
     <motion.button
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       aria-label={title}
       className={`flex items-center justify-center ${size} rounded-sm`}
       style={{

@@ -2,10 +2,9 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { getRequiredTeamId } from '@/lib/teamId';
 import { Request } from '@/lib/types';
 import { RealtimeChannel } from '@supabase/supabase-js';
-
-const TEAM_ID = process.env.NEXT_PUBLIC_TEAM_ID;
 
 interface UseRealtimeRequestsOptions {
   onInsert?: (request: Request) => void;
@@ -22,7 +21,15 @@ interface UseRealtimeRequestsReturn {
   optimisticUpdate: (id: string, changes: Partial<Request>) => void;
   optimisticDelete: (id: string) => void;
   optimisticInsert: (request: Request) => void;
+  /**
+   * Set de ids que recibieron un evento realtime (INSERT/UPDATE) en los
+   * últimos PULSE_TTL_MS milisegundos. Usado por las cards para hacer un
+   * pulse visual sutil cuando otro user toca un pedido.
+   */
+  recentlyUpdatedIds: Set<string>;
 }
+
+const PULSE_TTL_MS = 600;
 
 export function useRealtimeRequests(
   options: UseRealtimeRequestsOptions = {}
@@ -31,7 +38,43 @@ export function useRealtimeRequests(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [recentlyUpdatedIds, setRecentlyUpdatedIds] = useState<Set<string>>(new Set());
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const pulseTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Marca un id como "recién actualizado" durante PULSE_TTL_MS para que las
+  // cards puedan animarse. Si llega un segundo evento para el mismo id antes
+  // del TTL, reinicia el timer (no acumula timers).
+  const markPulse = useCallback((id: string) => {
+    setRecentlyUpdatedIds((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+    const existing = pulseTimersRef.current.get(id);
+    if (existing) clearTimeout(existing);
+    const t = setTimeout(() => {
+      pulseTimersRef.current.delete(id);
+      setRecentlyUpdatedIds((prev) => {
+        if (!prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }, PULSE_TTL_MS);
+    pulseTimersRef.current.set(id, t);
+  }, []);
+
+  // Cleanup global de timers al desmontar el hook (evita updates de state
+  // sobre componentes ya desmontados).
+  useEffect(() => {
+    const timers = pulseTimersRef.current;
+    return () => {
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+    };
+  }, []);
 
   // Store callbacks in ref to avoid re-subscribing on every render
   const optionsRef = useRef(options);
@@ -47,16 +90,11 @@ export function useRealtimeRequests(
       setLoading(true);
       setError(null);
 
-      let query = supabase
+      const { data, error: fetchError } = await supabase
         .from('requests')
         .select('*')
+        .eq('team_id', getRequiredTeamId())
         .order('deadline', { ascending: true });
-
-      if (TEAM_ID) {
-        query = query.eq('team_id', TEAM_ID);
-      }
-
-      const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
       setRequests(data || []);
@@ -88,9 +126,7 @@ export function useRealtimeRequests(
     fetchRequests();
 
     // Realtime filter: only listen for this team's changes
-    const realtimeFilter = TEAM_ID
-      ? `team_id=eq.${TEAM_ID}`
-      : undefined;
+    const realtimeFilter = `team_id=eq.${getRequiredTeamId()}`;
 
     // Create realtime channel
     const channel = supabase
@@ -101,7 +137,7 @@ export function useRealtimeRequests(
           event: 'INSERT',
           schema: 'public',
           table: 'requests',
-          ...(realtimeFilter && { filter: realtimeFilter }),
+          filter: realtimeFilter,
         },
         (payload) => {
           const newRequest = payload.new as Request;
@@ -112,6 +148,7 @@ export function useRealtimeRequests(
             }
             return sortByDeadline([...prev, newRequest]);
           });
+          markPulse(newRequest.id);
           optionsRef.current.onInsert?.(newRequest);
         }
       )
@@ -121,13 +158,14 @@ export function useRealtimeRequests(
           event: 'UPDATE',
           schema: 'public',
           table: 'requests',
-          ...(realtimeFilter && { filter: realtimeFilter }),
+          filter: realtimeFilter,
         },
         (payload) => {
           const updatedRequest = payload.new as Request;
           setRequests((prev) =>
             sortByDeadline(prev.map((r) => (r.id === updatedRequest.id ? updatedRequest : r)))
           );
+          markPulse(updatedRequest.id);
           optionsRef.current.onUpdate?.(updatedRequest);
         }
       )
@@ -137,7 +175,7 @@ export function useRealtimeRequests(
           event: 'DELETE',
           schema: 'public',
           table: 'requests',
-          ...(realtimeFilter && { filter: realtimeFilter }),
+          filter: realtimeFilter,
         },
         (payload) => {
           const deletedId = (payload.old as { id: string }).id;
@@ -157,7 +195,7 @@ export function useRealtimeRequests(
         supabase.removeChannel(channelRef.current);
       }
     };
-  }, [fetchRequests]);
+  }, [fetchRequests, markPulse]);
 
   return {
     requests,
@@ -168,5 +206,6 @@ export function useRealtimeRequests(
     optimisticUpdate,
     optimisticDelete,
     optimisticInsert,
+    recentlyUpdatedIds,
   };
 }

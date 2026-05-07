@@ -197,10 +197,7 @@ function SettingsOption({
         <span style={{ color: isActive ? color : '#666' }}>{icon}</span>
         <span className="text-xs text-gray-300">{label}</span>
       </div>
-      <span
-        className="text-[10px] font-medium"
-        style={{ color: isActive ? color : '#666' }}
-      >
+      <span className="text-[10px] font-medium" style={{ color: isActive ? color : '#666' }}>
         {value}
       </span>
     </motion.button>

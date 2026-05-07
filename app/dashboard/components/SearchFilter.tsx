@@ -64,7 +64,7 @@ export default function SearchFilter({
                 onChange={(e) => onSearchChange(e.target.value)}
                 placeholder="Buscar por cliente, descripción, persona..."
                 className="input-lcd w-full pl-9 pr-8 py-2 text-xs"
-                aria-describedby={searchQuery ? "search-results" : undefined}
+                aria-describedby={searchQuery ? 'search-results' : undefined}
               />
               {searchQuery && (
                 <button
@@ -102,7 +102,11 @@ export default function SearchFilter({
               <button
                 onClick={() => setSortOrder(settings.sortOrder === 'asc' ? 'desc' : 'asc')}
                 className="p-2.5 rounded transition-colors hover:bg-white/10 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                aria-label={settings.sortOrder === 'asc' ? 'Orden ascendente, cambiar a descendente' : 'Orden descendente, cambiar a ascendente'}
+                aria-label={
+                  settings.sortOrder === 'asc'
+                    ? 'Orden ascendente, cambiar a descendente'
+                    : 'Orden descendente, cambiar a ascendente'
+                }
                 aria-pressed={settings.sortOrder === 'desc'}
                 type="button"
               >

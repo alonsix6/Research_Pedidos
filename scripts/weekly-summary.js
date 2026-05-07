@@ -5,8 +5,13 @@
  */
 
 const { createClient } = require('@supabase/supabase-js');
-const { differenceInDays, parseISO, startOfWeek, endOfWeek, format } = require('date-fns');
+const { startOfWeek, endOfWeek, format } = require('date-fns');
+const { utcToZonedTime, zonedTimeToUtc } = require('date-fns-tz');
 const { es } = require('date-fns/locale');
+const { daysUntilLimaDate, LIMA_TIMEZONE } = require('./_dateUtils');
+const { escapeMd } = require('./_telegramMarkdown');
+const { notifyCronFailure } = require('./_notify');
+// Nota: weekly-summary.js no usa getPriorityEmoji directamente, solo formatDaysLeft inline (con caso especial "Vence el lunes").
 
 // Variables de entorno (configuradas en GitHub Secrets)
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -15,9 +20,9 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const TEAM_ID = process.env.TEAM_ID;
 
-// Validar variables de entorno
-if (!SUPABASE_URL || !SUPABASE_KEY || !TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-  console.error('❌ Error: Faltan variables de entorno necesarias');
+// TEAM_ID obligatorio: sin él, el filtro se omitía y el script veía datos de todos los teams.
+if (!SUPABASE_URL || !SUPABASE_KEY || !TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID || !TEAM_ID) {
+  console.error('❌ Error: Faltan variables de entorno necesarias (incluyendo TEAM_ID)');
   process.exit(1);
 }
 
@@ -29,26 +34,20 @@ const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 
 // Frases motivacionales para el fin de semana
 const WEEKEND_PHRASES = [
-  "¡Excelente trabajo esta semana! Disfruten el fin de semana. 🎉",
-  "¡Semana productiva! Es hora de recargar energías. 💪",
-  "¡Buen cierre de semana! A descansar y volver con todo el lunes. 🚀",
-  "¡Feliz fin de semana, equipo! Se lo han ganado. ⭐",
-  "¡Otra semana conquistada! Disfruten el descanso. 🌟",
-  "¡Gran esfuerzo esta semana! El fin de semana es su recompensa. 🏆",
-  "¡Cerramos bien! Ahora a disfrutar el merecido descanso. 😎",
-  "¡Semana completada con éxito! A recargar pilas. 🔋",
+  '¡Excelente trabajo esta semana! Disfruten el fin de semana. 🎉',
+  '¡Semana productiva! Es hora de recargar energías. 💪',
+  '¡Buen cierre de semana! A descansar y volver con todo el lunes. 🚀',
+  '¡Feliz fin de semana, equipo! Se lo han ganado. ⭐',
+  '¡Otra semana conquistada! Disfruten el descanso. 🌟',
+  '¡Gran esfuerzo esta semana! El fin de semana es su recompensa. 🏆',
+  '¡Cerramos bien! Ahora a disfrutar el merecido descanso. 😎',
+  '¡Semana completada con éxito! A recargar pilas. 🔋',
 ];
 
-/**
- * Obtiene una frase aleatoria para el fin de semana
- */
 function getRandomWeekendPhrase() {
   return WEEKEND_PHRASES[Math.floor(Math.random() * WEEKEND_PHRASES.length)];
 }
 
-/**
- * Envía un mensaje a Telegram
- */
 async function sendTelegramMessage(text) {
   const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: 'POST',
@@ -68,23 +67,8 @@ async function sendTelegramMessage(text) {
   return response.json();
 }
 
-/**
- * Obtiene emoji según prioridad
- */
-function getPriorityEmoji(priority) {
-  switch (priority) {
-    case 'urgent': return '🔴';
-    case 'high': return '🟡';
-    case 'normal': return '🟢';
-    default: return '⚪';
-  }
-}
-
-/**
- * Formatea días restantes
- */
 function formatDaysLeft(deadline) {
-  const daysLeft = differenceInDays(parseISO(deadline), new Date());
+  const daysLeft = daysUntilLimaDate(deadline);
 
   if (daysLeft < 0) return `⚠️ Atrasado ${Math.abs(daysLeft)} día(s)`;
   if (daysLeft === 0) return '⚠️ Vence HOY';
@@ -93,149 +77,131 @@ function formatDaysLeft(deadline) {
   return `${daysLeft} días`;
 }
 
-/**
- * Script principal
- */
 async function main() {
-  try {
-    console.log('📊 Iniciando resumen semanal...');
+  console.log('📊 Iniciando resumen semanal...');
 
-    const now = new Date();
-    const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Lunes
-    const weekEnd = endOfWeek(now, { weekStartsOn: 1 }); // Domingo
+  // Calcula el rango "esta semana" en hora Lima (lunes 00:00 a domingo 23:59:59
+  // Lima), no en UTC. Sin esto, completados entre dom 19h-23h59 Lima caían
+  // en lunes UTC y se perdían del resumen del viernes siguiente.
+  const nowLima = utcToZonedTime(new Date(), LIMA_TIMEZONE);
+  const weekStartLima = startOfWeek(nowLima, { weekStartsOn: 1 });
+  const weekEndLima = endOfWeek(nowLima, { weekStartsOn: 1 });
+  const weekStart = zonedTimeToUtc(weekStartLima, LIMA_TIMEZONE);
+  const weekEnd = zonedTimeToUtc(weekEndLima, LIMA_TIMEZONE);
 
-    // Obtener pedidos completados esta semana
-    let completedQuery = supabase
-      .from('requests')
-      .select('*')
-      .eq('status', 'completed')
-      .gte('completed_at', weekStart.toISOString())
-      .lte('completed_at', weekEnd.toISOString())
-      .order('completed_at', { ascending: false });
+  // Obtener pedidos completados esta semana
+  const { data: completedThisWeek, error: completedError } = await supabase
+    .from('requests')
+    .select('*')
+    .eq('team_id', TEAM_ID)
+    .eq('status', 'completed')
+    .gte('completed_at', weekStart.toISOString())
+    .lte('completed_at', weekEnd.toISOString())
+    .order('completed_at', { ascending: false });
 
-    if (TEAM_ID) {
-      completedQuery = completedQuery.eq('team_id', TEAM_ID);
-    }
-
-    const { data: completedThisWeek, error: completedError } = await completedQuery;
-
-    if (completedError) {
-      throw new Error(`Error fetching completed requests: ${completedError.message}`);
-    }
-
-    // Obtener pedidos pendientes
-    let pendingQuery = supabase
-      .from('requests')
-      .select('*')
-      .not('status', 'in', '("completed","cancelled")')
-      .order('deadline', { ascending: true });
-
-    if (TEAM_ID) {
-      pendingQuery = pendingQuery.eq('team_id', TEAM_ID);
-    }
-
-    const { data: pendingRequests, error: pendingError } = await pendingQuery;
-
-    if (pendingError) {
-      throw new Error(`Error fetching pending requests: ${pendingError.message}`);
-    }
-
-    // Clasificar pendientes
-    const overdue = pendingRequests.filter(r => {
-      const daysLeft = differenceInDays(parseISO(r.deadline), now);
-      return daysLeft < 0;
-    });
-
-    const dueNextWeek = pendingRequests.filter(r => {
-      const daysLeft = differenceInDays(parseISO(r.deadline), now);
-      return daysLeft >= 0 && daysLeft <= 7;
-    });
-
-    const dueLater = pendingRequests.filter(r => {
-      const daysLeft = differenceInDays(parseISO(r.deadline), now);
-      return daysLeft > 7;
-    });
-
-    // Construir mensaje
-    const weekRange = `${format(weekStart, 'd', { locale: es })} - ${format(weekEnd, 'd \'de\' MMMM', { locale: es })}`;
-
-    let message = `📊 *RESUMEN SEMANAL*\n`;
-    message += `Semana del ${weekRange}\n\n`;
-
-    // Sección: Completados esta semana
-    message += `✅ *COMPLETADOS ESTA SEMANA* (${completedThisWeek.length})\n`;
-    if (completedThisWeek.length === 0) {
-      message += `   No se completaron pedidos esta semana.\n\n`;
-    } else {
-      completedThisWeek.slice(0, 8).forEach(req => {
-        message += `   • ${req.client} - ${req.description.substring(0, 40)}${req.description.length > 40 ? '...' : ''}\n`;
-      });
-      if (completedThisWeek.length > 8) {
-        message += `   ... y ${completedThisWeek.length - 8} más\n`;
-      }
-      message += '\n';
-    }
-
-    // Sección: Pendientes
-    message += `📋 *PENDIENTES* (${pendingRequests.length})\n\n`;
-
-    // Atrasados
-    if (overdue.length > 0) {
-      message += `🔴 *Atrasados* (${overdue.length})\n`;
-      overdue.forEach(req => {
-        message += `   • ${req.client} - ${formatDaysLeft(req.deadline)}\n`;
-      });
-      message += '\n';
-    }
-
-    // Para la próxima semana
-    if (dueNextWeek.length > 0) {
-      message += `🟡 *Próxima semana* (${dueNextWeek.length})\n`;
-      dueNextWeek.slice(0, 5).forEach(req => {
-        message += `   • ${req.client} - ${formatDaysLeft(req.deadline)}\n`;
-      });
-      if (dueNextWeek.length > 5) {
-        message += `   ... y ${dueNextWeek.length - 5} más\n`;
-      }
-      message += '\n';
-    }
-
-    // Más adelante
-    if (dueLater.length > 0) {
-      message += `🟢 *Más adelante* (${dueLater.length})\n`;
-      dueLater.slice(0, 3).forEach(req => {
-        message += `   • ${req.client} - ${formatDaysLeft(req.deadline)}\n`;
-      });
-      if (dueLater.length > 3) {
-        message += `   ... y ${dueLater.length - 3} más\n`;
-      }
-      message += '\n';
-    }
-
-    // Estadísticas
-    message += `---\n`;
-    message += `📈 *Esta semana:* ${completedThisWeek.length} completados\n`;
-    message += `📉 *Pendientes:* ${pendingRequests.length} (${overdue.length} atrasados)\n\n`;
-
-    // Frase motivacional
-    message += getRandomWeekendPhrase();
-
-    // Enviar mensaje
-    console.log('📤 Enviando resumen semanal a Telegram...');
-    await sendTelegramMessage(message);
-    console.log('✅ Resumen semanal enviado exitosamente!');
-
-    // Log resumen
-    console.log(`\n📊 Resumen:`);
-    console.log(`   - Completados esta semana: ${completedThisWeek.length}`);
-    console.log(`   - Pendientes totales: ${pendingRequests.length}`);
-    console.log(`   - Atrasados: ${overdue.length}`);
-
-  } catch (error) {
-    console.error('❌ Error en resumen semanal:', error);
-    process.exit(1);
+  if (completedError) {
+    throw new Error(`Error fetching completed requests: ${completedError.message}`);
   }
+
+  // Obtener pedidos pendientes
+  const { data: pendingRequests, error: pendingError } = await supabase
+    .from('requests')
+    .select('*')
+    .eq('team_id', TEAM_ID)
+    .not('status', 'in', '("completed","cancelled")')
+    .order('deadline', { ascending: true });
+
+  if (pendingError) {
+    throw new Error(`Error fetching pending requests: ${pendingError.message}`);
+  }
+
+  // Clasificar pendientes (en hora Lima)
+  const overdue = pendingRequests.filter((r) => daysUntilLimaDate(r.deadline) < 0);
+  const dueNextWeek = pendingRequests.filter((r) => {
+    const d = daysUntilLimaDate(r.deadline);
+    return d >= 0 && d <= 7;
+  });
+  const dueLater = pendingRequests.filter((r) => daysUntilLimaDate(r.deadline) > 7);
+
+  // Construir mensaje (rango en hora Lima para que diga "5 - 11 de mayo" no UTC)
+  const weekRange = `${format(weekStartLima, 'd', { locale: es })} - ${format(weekEndLima, "d 'de' MMMM", { locale: es })}`;
+
+  let message = `📊 *RESUMEN SEMANAL*\n`;
+  message += `Semana del ${weekRange}\n\n`;
+
+  // Sección: Completados esta semana
+  message += `✅ *COMPLETADOS ESTA SEMANA* (${completedThisWeek.length})\n`;
+  if (completedThisWeek.length === 0) {
+    message += `   No se completaron pedidos esta semana.\n\n`;
+  } else {
+    completedThisWeek.slice(0, 8).forEach((req) => {
+      const desc = req.description.substring(0, 40) + (req.description.length > 40 ? '...' : '');
+      message += `   • ${escapeMd(req.client)} - ${escapeMd(desc)}\n`;
+    });
+    if (completedThisWeek.length > 8) {
+      message += `   ... y ${completedThisWeek.length - 8} más\n`;
+    }
+    message += '\n';
+  }
+
+  // Sección: Pendientes
+  message += `📋 *PENDIENTES* (${pendingRequests.length})\n\n`;
+
+  // Atrasados
+  if (overdue.length > 0) {
+    message += `🔴 *Atrasados* (${overdue.length})\n`;
+    overdue.forEach((req) => {
+      message += `   • ${escapeMd(req.client)} - ${formatDaysLeft(req.deadline)}\n`;
+    });
+    message += '\n';
+  }
+
+  // Para la próxima semana
+  if (dueNextWeek.length > 0) {
+    message += `🟡 *Próxima semana* (${dueNextWeek.length})\n`;
+    dueNextWeek.slice(0, 5).forEach((req) => {
+      message += `   • ${escapeMd(req.client)} - ${formatDaysLeft(req.deadline)}\n`;
+    });
+    if (dueNextWeek.length > 5) {
+      message += `   ... y ${dueNextWeek.length - 5} más\n`;
+    }
+    message += '\n';
+  }
+
+  // Más adelante
+  if (dueLater.length > 0) {
+    message += `🟢 *Más adelante* (${dueLater.length})\n`;
+    dueLater.slice(0, 3).forEach((req) => {
+      message += `   • ${escapeMd(req.client)} - ${formatDaysLeft(req.deadline)}\n`;
+    });
+    if (dueLater.length > 3) {
+      message += `   ... y ${dueLater.length - 3} más\n`;
+    }
+    message += '\n';
+  }
+
+  // Estadísticas
+  message += `---\n`;
+  message += `📈 *Esta semana:* ${completedThisWeek.length} completados\n`;
+  message += `📉 *Pendientes:* ${pendingRequests.length} (${overdue.length} atrasados)\n\n`;
+
+  // Frase motivacional
+  message += getRandomWeekendPhrase();
+
+  // Enviar mensaje
+  console.log('📤 Enviando resumen semanal a Telegram...');
+  await sendTelegramMessage(message);
+  console.log('✅ Resumen semanal enviado exitosamente!');
+
+  // Log resumen
+  console.log(`\n📊 Resumen:`);
+  console.log(`   - Completados esta semana: ${completedThisWeek.length}`);
+  console.log(`   - Pendientes totales: ${pendingRequests.length}`);
+  console.log(`   - Atrasados: ${overdue.length}`);
 }
 
-// Ejecutar script
-main();
+main().catch(async (error) => {
+  console.error('❌ Error en resumen semanal:', error);
+  await notifyCronFailure('weekly-summary', error);
+  process.exit(1);
+});

@@ -10,7 +10,10 @@ let audioContext: AudioContext | null = null;
 
 function getAudioContext(): AudioContext {
   if (!audioContext) {
-    audioContext = new (window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)();
+    audioContext = new (
+      window.AudioContext ||
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    )();
   }
   return audioContext;
 }
@@ -119,14 +122,17 @@ export function useAppSound(enabled: boolean = true) {
     }
   }, []);
 
-  const playSound = useCallback((type: SoundType) => {
-    // Check for reduced motion preference
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const playSound = useCallback(
+    (type: SoundType) => {
+      // Check for reduced motion preference
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    if (enabled && !prefersReducedMotion && soundsRef.current) {
-      soundsRef.current[type]();
-    }
-  }, [enabled]);
+      if (enabled && !prefersReducedMotion && soundsRef.current) {
+        soundsRef.current[type]();
+      }
+    },
+    [enabled]
+  );
 
   return {
     playClick: useCallback(() => playSound('click'), [playSound]),

@@ -7,11 +7,12 @@ import { Request } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { calculatePriority } from '@/lib/utils';
 import { logActivity } from '@/lib/activityLog';
-import { X, Briefcase, FileText, User, Calendar, Send, Loader2 } from 'lucide-react';
+import { getRequiredTeamId } from '@/lib/teamId';
+import { useStaleNotice } from '@/lib/hooks/useStaleNotice';
+import { ConflictError, updateRequestWithConflictCheck } from '@/lib/services/requests';
+import { AlertTriangle, X, Briefcase, FileText, User, Calendar, Send, Loader2 } from 'lucide-react';
 import Button3D from './controls/Button3D';
 import CalendarPicker from './controls/CalendarPicker';
-
-const TEAM_ID = process.env.NEXT_PUBLIC_TEAM_ID;
 
 interface ModalUser {
   id: string;
@@ -42,6 +43,16 @@ export default function PedidoModal({
     assigned_to: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Snapshot del `updated_at` al abrir el modal. Se usa para:
+  //   1) detectar concurrent edit (useStaleNotice escucha realtime y compara)
+  //   2) conflict check al guardar (.eq('updated_at', snapshot))
+  const [snapshotUpdatedAt, setSnapshotUpdatedAt] = useState<string | null>(null);
+  const {
+    isStale,
+    latestRow,
+    dismiss: dismissStale,
+  } = useStaleNotice(isOpen && editingRequest ? editingRequest.id : null, snapshotUpdatedAt);
 
   const modalRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -79,18 +90,36 @@ export default function PedidoModal({
           deadline: editingRequest.deadline.split('T')[0],
           assigned_to: editingRequest.assigned_to || '',
         });
+        setSnapshotUpdatedAt(editingRequest.updated_at);
       } else {
         resetForm();
+        setSnapshotUpdatedAt(null);
       }
     }
   }, [isOpen, editingRequest]);
 
+  // "Recargar" del banner stale: pisa el form con la versión nueva del row
+  // y refresca el snapshot para que el siguiente save no choque.
+  function applyLatestVersion() {
+    if (!latestRow) return;
+    setFormData({
+      client: latestRow.client,
+      description: latestRow.description,
+      requester_name: latestRow.requester_name,
+      requester_role: latestRow.requester_role || '',
+      deadline: latestRow.deadline.split('T')[0],
+      assigned_to: latestRow.assigned_to || '',
+    });
+    setSnapshotUpdatedAt(latestRow.updated_at);
+    dismissStale();
+  }
+
   async function loadUsers() {
-    let query = supabase.from('users').select('id, name').order('name');
-    if (TEAM_ID) {
-      query = query.eq('team_id', TEAM_ID);
-    }
-    const { data } = await query;
+    const { data } = await supabase
+      .from('users')
+      .select('id, name')
+      .eq('team_id', getRequiredTeamId())
+      .order('name');
     if (data) {
       setUsers(data);
     }
@@ -151,28 +180,46 @@ export default function PedidoModal({
       };
 
       if (editingRequest) {
-        let updateQuery = supabase
-          .from('requests')
-          .update({ ...requestData, updated_at: new Date().toISOString() })
-          .eq('id', editingRequest.id);
-
-        if (TEAM_ID) {
-          updateQuery = updateQuery.eq('team_id', TEAM_ID);
+        // Conflict-detected update centralizado en lib/services/requests.ts.
+        // Si otro user tocó la fila entre el open del modal y este save,
+        // updateRequestWithConflictCheck lanza ConflictError y le mostramos
+        // un mensaje inline en lugar de pisar silencioso.
+        try {
+          await updateRequestWithConflictCheck(
+            editingRequest.id,
+            snapshotUpdatedAt ?? editingRequest.updated_at,
+            requestData
+          );
+        } catch (err) {
+          if (err instanceof ConflictError) {
+            setErrors({
+              submit:
+                'Otro usuario editó este pedido mientras lo tenías abierto. Usa "Ver cambios" arriba para recargar y reintentar.',
+            });
+            setLoading(false);
+            return;
+          }
+          throw err;
         }
-
-        const { error } = await updateQuery;
-
-        if (error) throw error;
 
         // Log edit activity with field changes
         const changes: Record<string, { old: string; new: string }> = {};
-        if (editingRequest.client !== requestData.client) changes.client = { old: editingRequest.client, new: requestData.client };
-        if (editingRequest.description !== requestData.description) changes.description = { old: editingRequest.description, new: requestData.description };
-        if (editingRequest.deadline !== requestData.deadline) changes.deadline = { old: editingRequest.deadline, new: requestData.deadline };
-        if (editingRequest.assigned_to !== requestData.assigned_to) changes.assigned = { old: editingRequest.assigned_to || '', new: requestData.assigned_to || '' };
+        if (editingRequest.client !== requestData.client)
+          changes.client = { old: editingRequest.client, new: requestData.client };
+        if (editingRequest.description !== requestData.description)
+          changes.description = { old: editingRequest.description, new: requestData.description };
+        if (editingRequest.deadline !== requestData.deadline)
+          changes.deadline = { old: editingRequest.deadline, new: requestData.deadline };
+        if (editingRequest.assigned_to !== requestData.assigned_to)
+          changes.assigned = {
+            old: editingRequest.assigned_to || '',
+            new: requestData.assigned_to || '',
+          };
 
         if (Object.keys(changes).length > 0) {
-          await logActivity(editingRequest.id, users[0]?.id || null, 'edited', { field_changes: changes });
+          await logActivity(editingRequest.id, users[0]?.id || null, 'edited', {
+            field_changes: changes,
+          });
         }
         if (editingRequest.deadline !== requestData.deadline) {
           await logActivity(editingRequest.id, users[0]?.id || null, 'deadline_changed', {
@@ -181,8 +228,8 @@ export default function PedidoModal({
           });
         }
         if (editingRequest.assigned_to !== requestData.assigned_to) {
-          const oldName = users.find(u => u.id === editingRequest.assigned_to)?.name || '';
-          const newName = users.find(u => u.id === requestData.assigned_to)?.name || '';
+          const oldName = users.find((u) => u.id === editingRequest.assigned_to)?.name || '';
+          const newName = users.find((u) => u.id === requestData.assigned_to)?.name || '';
           await logActivity(editingRequest.id, users[0]?.id || null, 'assigned', {
             old_assigned: oldName,
             new_assigned: newName,
@@ -192,7 +239,7 @@ export default function PedidoModal({
         const { error } = await supabase.from('requests').insert({
           ...requestData,
           created_by: users[0]?.id || null,
-          ...(TEAM_ID && { team_id: TEAM_ID }),
+          team_id: getRequiredTeamId(),
         });
 
         if (error) throw error;
@@ -286,6 +333,38 @@ export default function PedidoModal({
 
             {/* Screen del formulario */}
             <div className="flex-1 overflow-y-auto p-4">
+              {isStale && (
+                <div
+                  role="alert"
+                  className="mb-3 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100"
+                >
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-400" />
+                  <div className="flex-1">
+                    <p className="font-medium">Otro usuario editó este pedido</p>
+                    <p className="opacity-80">
+                      Tu form muestra contenido que ya no es la versión actual. Si guardás como
+                      está, vas a obtener un error de conflicto.
+                    </p>
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={applyLatestVersion}
+                        title="Pisa el formulario con la versión actualizada (perderás cambios locales sin guardar)"
+                        className="rounded-md bg-amber-500/30 px-2 py-1 text-xs font-medium hover:bg-amber-500/40"
+                      >
+                        Ver cambios
+                      </button>
+                      <button
+                        type="button"
+                        onClick={dismissStale}
+                        className="rounded-md px-2 py-1 text-xs opacity-70 hover:opacity-100"
+                      >
+                        Continuar igual
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="lcd-screen p-4">
                 <form id={formId} onSubmit={handleSubmit} className="space-y-4" noValidate>
                   {/* Cliente */}
@@ -325,7 +404,9 @@ export default function PedidoModal({
                       rows={3}
                       placeholder="Describe lo que necesitan..."
                       aria-invalid={!!errors.description}
-                      aria-describedby={errors.description ? `${formId}-description-error` : undefined}
+                      aria-describedby={
+                        errors.description ? `${formId}-description-error` : undefined
+                      }
                       required
                     />
                   </FormField>
@@ -343,23 +424,26 @@ export default function PedidoModal({
                         id={`${formId}-requester`}
                         type="text"
                         value={formData.requester_name}
-                        onChange={(e) => setFormData({ ...formData, requester_name: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, requester_name: e.target.value })
+                        }
                         className="input-lcd w-full"
                         placeholder="Nombre"
                         aria-invalid={!!errors.requester_name}
-                        aria-describedby={errors.requester_name ? `${formId}-requester-error` : undefined}
+                        aria-describedby={
+                          errors.requester_name ? `${formId}-requester-error` : undefined
+                        }
                         required
                       />
                     </FormField>
-                    <FormField
-                      id={`${formId}-role`}
-                      label="Cargo"
-                    >
+                    <FormField id={`${formId}-role`} label="Cargo">
                       <input
                         id={`${formId}-role`}
                         type="text"
                         value={formData.requester_role}
-                        onChange={(e) => setFormData({ ...formData, requester_role: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, requester_role: e.target.value })
+                        }
                         className="input-lcd w-full"
                         placeholder="Ej: Ejecutiva"
                       />
@@ -385,11 +469,7 @@ export default function PedidoModal({
                   </FormField>
 
                   {/* Asignado */}
-                  <FormField
-                    id={`${formId}-assigned`}
-                    icon={<User size={12} />}
-                    label="Asignar a"
-                  >
+                  <FormField id={`${formId}-assigned`} icon={<User size={12} />} label="Asignar a">
                     <select
                       id={`${formId}-assigned`}
                       value={formData.assigned_to}
@@ -505,13 +585,21 @@ function FormField({
       transition={{ duration: 0.2 }}
     >
       <label htmlFor={id} className="flex items-center gap-2 mb-1.5">
-        {icon && <span style={{ color: '#FF4500' }} aria-hidden="true">{icon}</span>}
+        {icon && (
+          <span style={{ color: '#FF4500' }} aria-hidden="true">
+            {icon}
+          </span>
+        )}
         <span
           className="text-[10px] uppercase tracking-wider font-medium"
           style={{ color: error ? '#E53935' : '#949494' }}
         >
           {label}
-          {required && <span className="text-[#FF4500] ml-0.5" aria-hidden="true">*</span>}
+          {required && (
+            <span className="text-[#FF4500] ml-0.5" aria-hidden="true">
+              *
+            </span>
+          )}
           {required && <span className="sr-only"> (requerido)</span>}
         </span>
       </label>

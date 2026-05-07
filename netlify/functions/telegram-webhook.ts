@@ -16,15 +16,30 @@ import {
   createCompleteConfirmButtons,
   InlineKeyboardMarkup,
 } from '../../lib/telegram';
-import { Request, ConversationStep, NewRequestData, CompleteRequestData, User } from '../../lib/types';
+import {
+  Request,
+  ConversationStep,
+  NewRequestData,
+  CompleteRequestData,
+  User,
+} from '../../lib/types';
 import { differenceInDays, parseISO, differenceInMinutes } from 'date-fns';
-import { parseNaturalDate, calculatePriority, getPriorityEmoji, formatLimaDate } from '../../lib/utils';
+import {
+  parseNaturalDate,
+  calculatePriority,
+  getPriorityEmoji,
+  formatLimaDate,
+} from '../../lib/utils';
+import { getRequiredTeamId } from '../../lib/teamId';
+import { escapeMd } from '../../lib/telegramMarkdown';
 
 // Cliente de Supabase con service role (lazy-initialized)
 const getSupabase = (): SupabaseClient => getSupabaseAdmin();
 
-// Team ID para filtrar datos (cada bot atiende un solo equipo)
-const TEAM_ID = process.env.TEAM_ID;
+// Team ID para filtrar datos (cada bot atiende un solo equipo).
+// Falla en module load si TEAM_ID no está configurado, en lugar de degradar
+// silenciosamente a "ver todos los teams".
+const TEAM_ID: string = getRequiredTeamId();
 
 // Rate limiting: máximo 3 pedidos cada 10 minutos por usuario
 const RATE_LIMIT_MAX_REQUESTS = 3;
@@ -121,15 +136,13 @@ async function saveConversationState(
   state: ConversationState,
   supabase: SupabaseClient
 ): Promise<void> {
-  const { error } = await supabase
-    .from('conversation_state')
-    .upsert({
-      chat_id: state.chatId,
-      user_id: state.userId,
-      step: state.step,
-      data: state.data,
-      updated_at: new Date().toISOString(),
-    });
+  const { error } = await supabase.from('conversation_state').upsert({
+    chat_id: state.chatId,
+    user_id: state.userId,
+    step: state.step,
+    data: state.data,
+    updated_at: new Date().toISOString(),
+  });
 
   if (error) {
     throw error;
@@ -149,15 +162,28 @@ async function clearConversationState(
 }
 
 /**
- * Limpia conversaciones expiradas (más de 30 minutos sin actividad)
+ * Inserta el update_id en la tabla de idempotencia.
+ * Devuelve true si ya estaba procesado (debe abortar el handler), false si es nuevo.
+ *
+ * Telegram reenvía un update si el webhook no responde 200 en ~30s. Sin esta
+ * verificación, el reintento ejecutaría /nuevopedido dos veces y crearía pedidos
+ * duplicados. La tabla `processed_telegram_updates` se limpia con pg_cron (jobs
+ * `cleanup-processed-telegram-updates`).
  */
-async function cleanupExpiredConversations(supabase: SupabaseClient): Promise<void> {
-  const expirationTime = new Date(Date.now() - CONVERSATION_TIMEOUT_MINUTES * 60 * 1000).toISOString();
+async function isAlreadyProcessed(updateId: number, supabase: SupabaseClient): Promise<boolean> {
+  const { error } = await supabase
+    .from('processed_telegram_updates')
+    .insert({ update_id: updateId });
 
-  await supabase
-    .from('conversation_state')
-    .delete()
-    .lt('updated_at', expirationTime);
+  if (!error) return false; // first time we see this update_id
+
+  // 23505 = unique_violation = ya procesamos este update
+  if ((error as { code?: string }).code === '23505') return true;
+
+  // Cualquier otro error: log y continuar (preferimos riesgo de duplicado a
+  // bloquear todo el bot por un fallo del check de dedup).
+  console.error('Idempotency check failed (continuing):', error);
+  return false;
 }
 
 /**
@@ -173,7 +199,10 @@ function isConversationExpired(state: ConversationState): boolean {
 /**
  * Verifica rate limiting para /nuevopedido
  */
-async function checkRateLimit(userId: string, supabase: SupabaseClient): Promise<{ allowed: boolean; remaining: number }> {
+async function checkRateLimit(
+  userId: string,
+  supabase: SupabaseClient
+): Promise<{ allowed: boolean; remaining: number }> {
   const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MINUTES * 60 * 1000).toISOString();
 
   const { count } = await supabase
@@ -195,14 +224,9 @@ async function checkRateLimit(userId: string, supabase: SupabaseClient): Promise
  * Obtiene los miembros del equipo en una sola query (dinámico por team_id)
  */
 async function getTeamMembers(supabase: SupabaseClient): Promise<{ id: string; name: string }[]> {
-  let query = supabase
-    .from('users')
-    .select('id, name')
-    .order('name', { ascending: true });
+  let query = supabase.from('users').select('id, name').order('name', { ascending: true });
 
-  if (TEAM_ID) {
-    query = query.eq('team_id', TEAM_ID);
-  }
+  query = query.eq('team_id', TEAM_ID);
 
   const { data: users } = await query;
   return users || [];
@@ -226,26 +250,26 @@ const conversationMessages = {
   start: '📝 *Nuevo pedido para el equipo*\n\n¿Para qué *cliente/cuenta*?',
 
   client: (client: string) =>
-    `✅ Cliente: *${client}*\n\n¿Qué necesitan exactamente? (Describe el pedido)`,
+    `✅ Cliente: *${escapeMd(client)}*\n\n¿Qué necesitan exactamente? (Describe el pedido)`,
 
   description: (desc: string) =>
-    `✅ Pedido: ${desc}\n\n¿Quién lo solicitó? (Nombre y cargo, ej: "Andrea, ejecutiva")`,
+    `✅ Pedido: ${escapeMd(desc)}\n\n¿Quién lo solicitó? (Nombre y cargo, ej: "Andrea, ejecutiva")`,
 
   requester: (requester: string) =>
-    `✅ Solicitante: ${requester}\n\n¿Fecha de entrega?\nPuedes usar:\n• Fecha: "25/12" o "25/12/2024"\n• Relativo: "hoy", "mañana", "en 3 días"`,
+    `✅ Solicitante: ${escapeMd(requester)}\n\n¿Fecha de entrega?\nPuedes usar:\n• Fecha: "25/12" o "25/12/2024"\n• Relativo: "hoy", "mañana", "en 3 días"`,
 
   deadline: (deadline: string, formatted: string, memberNames?: string[]) => {
     let assignOptions = '';
     if (memberNames && memberNames.length > 0) {
       const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
       memberNames.forEach((name, i) => {
-        assignOptions += `${emojis[i] || `${i + 1}.`} ${name}\n`;
+        assignOptions += `${emojis[i] || `${i + 1}.`} ${escapeMd(name)}\n`;
       });
       assignOptions += `${emojis[memberNames.length] || `${memberNames.length + 1}.`} Sin asignar`;
     } else {
       assignOptions = '1️⃣ Sin asignar';
     }
-    return `✅ Deadline: ${formatted}\n\n¿Quién se encarga?\n${assignOptions}\n\nResponde con el número.`;
+    return `✅ Deadline: ${escapeMd(formatted)}\n\n¿Quién se encarga?\n${assignOptions}\n\nResponde con el número.`;
   },
 
   summary: (data: NewRequestData, assigned: string, priority: string, emoji: string) => {
@@ -253,19 +277,20 @@ const conversationMessages = {
     const name = parts[0]?.trim() || data.requester_name;
     const role = parts[1]?.trim() || '';
 
-    return `✅ *Pedido creado!*\n\n📋 *Resumen:*\nCliente: ${data.client}\nPedido: ${data.description}\nSolicitante: ${name}${role ? ` (${role})` : ''}\nDeadline: ${data.deadline}\nAsignado: ${assigned}\nPrioridad: ${emoji} ${priority}\n\n✨ El pedido ha sido guardado y todos pueden verlo con /ver`;
+    return `✅ *Pedido creado!*\n\n📋 *Resumen:*\nCliente: ${escapeMd(data.client)}\nPedido: ${escapeMd(data.description)}\nSolicitante: ${escapeMd(name || '')}${role ? ` (${escapeMd(role)})` : ''}\nDeadline: ${escapeMd(data.deadline)}\nAsignado: ${escapeMd(assigned)}\nPrioridad: ${emoji} ${priority}\n\n✨ El pedido ha sido guardado y todos pueden verlo con /ver`;
   },
 
   cancel: '❌ Pedido cancelado. Usa /nuevopedido cuando quieras crear uno nuevo.',
 
   error: '⚠️ No entendí esa respuesta. Por favor intenta de nuevo.',
 
-  invalidDate: '⚠️ No pude entender esa fecha. Usa formatos como:\n• "25/12" o "25/12/2024"\n• "hoy", "mañana"\n• "en 3 días"',
+  invalidDate:
+    '⚠️ No pude entender esa fecha. Usa formatos como:\n• "25/12" o "25/12/2024"\n• "hoy", "mañana"\n• "en 3 días"',
 
-  invalidAssignment: (max: number) =>
-    `⚠️ Por favor responde con un número del 1 al ${max}.`,
+  invalidAssignment: (max: number) => `⚠️ Por favor responde con un número del 1 al ${max}.`,
 
-  conversationExpired: '⏰ Tu sesión ha expirado por inactividad. Usa /nuevopedido para comenzar de nuevo.',
+  conversationExpired:
+    '⏰ Tu sesión ha expirado por inactividad. Usa /nuevopedido para comenzar de nuevo.',
 
   rateLimited: (remaining: number) =>
     `⚠️ Has alcanzado el límite de ${RATE_LIMIT_MAX_REQUESTS} pedidos en ${RATE_LIMIT_WINDOW_MINUTES} minutos. Espera un momento antes de crear más pedidos.`,
@@ -277,7 +302,11 @@ const conversationMessages = {
  * Valida la firma del webhook de Telegram
  * https://core.telegram.org/bots/api#setwebhook
  */
-function validateWebhookSignature(body: string, secretToken: string | undefined, headerToken: string | undefined): boolean {
+function validateWebhookSignature(
+  body: string,
+  secretToken: string | undefined,
+  headerToken: string | undefined
+): boolean {
   // PRODUCCIÓN: Secret token es obligatorio
   if (!secretToken) {
     console.error('SECURITY: TELEGRAM_WEBHOOK_SECRET no está configurado. Rechazando webhook.');
@@ -292,10 +321,7 @@ function validateWebhookSignature(body: string, secretToken: string | undefined,
 
   // Comparar tokens de forma segura (timing-safe)
   try {
-    return crypto.timingSafeEqual(
-      Buffer.from(secretToken),
-      Buffer.from(headerToken)
-    );
+    return crypto.timingSafeEqual(Buffer.from(secretToken), Buffer.from(headerToken));
   } catch {
     return false;
   }
@@ -333,10 +359,17 @@ export const handler: Handler = async (event) => {
   try {
     const update = JSON.parse(event.body || '{}');
 
-    // Limpiar conversaciones expiradas periódicamente (1% de las requests)
-    if (Math.random() < 0.01) {
-      await cleanupExpiredConversations(getSupabase());
+    // Idempotencia: si Telegram reintenta, no reprocesamos.
+    if (typeof update.update_id === 'number') {
+      if (await isAlreadyProcessed(update.update_id, getSupabase())) {
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ ok: true, deduplicated: true }),
+        };
+      }
     }
+
+    // (Cleanup de conversation_state ahora corre via pg_cron cada 5 min.)
 
     // Manejar callback queries (botones inline)
     if (update.callback_query) {
@@ -586,7 +619,7 @@ async function handleConversationFlow(
 
       // Cargar miembros del equipo para mostrar opciones de asignación
       const membersForDeadline = await getTeamMembers(getSupabase());
-      const memberNames = membersForDeadline.map(m => m.name);
+      const memberNames = membersForDeadline.map((m) => m.name);
 
       await saveConversationState(
         {
@@ -636,7 +669,7 @@ async function handleConversationFlow(
           status: 'pending',
           priority: priority,
           created_by: user.id,
-          ...(TEAM_ID && { team_id: TEAM_ID }),
+          team_id: TEAM_ID,
         });
 
       if (error) {
@@ -693,7 +726,7 @@ async function handleConversationFlow(
       // Enviar confirmación
       await sendMessage(
         chatId,
-        `✅ *Pedido completado!*\n\n${updatedRequest.client} - ${updatedRequest.description}\n\n🎉 ¡Buen trabajo!`
+        `✅ *Pedido completado!*\n\n${escapeMd(updatedRequest.client)} - ${escapeMd(updatedRequest.description)}\n\n🎉 ¡Buen trabajo!`
       );
       break;
 
@@ -703,7 +736,10 @@ async function handleConversationFlow(
       const statusReqIds = statusSelData.requestIds || [];
 
       if (isNaN(statusSelNum) || statusSelNum < 1 || statusSelNum > statusReqIds.length) {
-        await sendMessage(chatId, `⚠️ Por favor responde con un número del 1 al ${statusReqIds.length}.`);
+        await sendMessage(
+          chatId,
+          `⚠️ Por favor responde con un número del 1 al ${statusReqIds.length}.`
+        );
         return;
       }
 
@@ -742,12 +778,15 @@ async function handleConversationFlow(
 
       const nextStatuses = transitions[statusReq.status] || [];
       if (nextStatuses.length === 0) {
-        await sendMessage(chatId, `Este pedido está en estado *${statusLabels[statusReq.status]}* y no puede cambiar de estado.`);
+        await sendMessage(
+          chatId,
+          `Este pedido está en estado *${statusLabels[statusReq.status]}* y no puede cambiar de estado.`
+        );
         await clearConversationState(chatId.toString(), userId, getSupabase());
         return;
       }
 
-      let statusMsg = `📋 *${statusReq.client}* - ${statusReq.description}\n`;
+      let statusMsg = `📋 *${escapeMd(statusReq.client)}* - ${escapeMd(statusReq.description)}\n`;
       statusMsg += `Estado actual: ${statusLabels[statusReq.status]}\n\n`;
       statusMsg += `¿A qué estado deseas cambiar?\n\n`;
       nextStatuses.forEach((s, i) => {
@@ -755,12 +794,15 @@ async function handleConversationFlow(
       });
       statusMsg += `\nResponde con el número o /cancelar`;
 
-      await saveConversationState({
-        chatId: chatId.toString(),
-        userId,
-        step: 'awaiting_status_change',
-        data: { requestIds: [statusReqId, ...nextStatuses] },
-      }, getSupabase());
+      await saveConversationState(
+        {
+          chatId: chatId.toString(),
+          userId,
+          step: 'awaiting_status_change',
+          data: { requestIds: [statusReqId, ...nextStatuses] },
+        },
+        getSupabase()
+      );
 
       await sendMessage(chatId, statusMsg);
       break;
@@ -774,7 +816,10 @@ async function handleConversationFlow(
       const availableStatuses = changeReqIds.slice(1);
 
       if (isNaN(changeNum) || changeNum < 1 || changeNum > availableStatuses.length) {
-        await sendMessage(chatId, `⚠️ Por favor responde con un número del 1 al ${availableStatuses.length}.`);
+        await sendMessage(
+          chatId,
+          `⚠️ Por favor responde con un número del 1 al ${availableStatuses.length}.`
+        );
         return;
       }
 
@@ -782,13 +827,19 @@ async function handleConversationFlow(
 
       // If blocked, ask for reason
       if (newStatus === 'blocked') {
-        await saveConversationState({
-          chatId: chatId.toString(),
-          userId,
-          step: 'awaiting_blocked_reason',
-          data: { requestIds: [changeReqId] },
-        }, getSupabase());
-        await sendMessage(chatId, '🔴 *Motivo del bloqueo:*\n\nEscribe por qué se bloquea este pedido:');
+        await saveConversationState(
+          {
+            chatId: chatId.toString(),
+            userId,
+            step: 'awaiting_blocked_reason',
+            data: { requestIds: [changeReqId] },
+          },
+          getSupabase()
+        );
+        await sendMessage(
+          chatId,
+          '🔴 *Motivo del bloqueo:*\n\nEscribe por qué se bloquea este pedido:'
+        );
         return;
       }
 
@@ -809,19 +860,25 @@ async function handleConversationFlow(
         await sendMessage(chatId, '❌ Error al cambiar estado.');
       } else {
         const statusLabelsInline: Record<string, string> = {
-          pending: '⏳ Pendiente', in_progress: '🔵 En Progreso', in_review: '🟣 En Revisión',
-          blocked: '🔴 Bloqueado', needs_revision: '🟠 Necesita Revisión',
-          completed: '✅ Completado', cancelled: '❌ Cancelado',
+          pending: '⏳ Pendiente',
+          in_progress: '🔵 En Progreso',
+          in_review: '🟣 En Revisión',
+          blocked: '🔴 Bloqueado',
+          needs_revision: '🟠 Necesita Revisión',
+          completed: '✅ Completado',
+          cancelled: '❌ Cancelado',
         };
         await sendMessage(chatId, `✅ Estado cambiado a *${statusLabelsInline[newStatus]}*`);
 
         // Log activity
-        await getSupabase().from('activity_log').insert({
-          request_id: changeReqId,
-          action: 'status_changed',
-          details: { to_status: newStatus },
-          ...(TEAM_ID && { team_id: TEAM_ID }),
-        });
+        await getSupabase()
+          .from('activity_log')
+          .insert({
+            request_id: changeReqId,
+            action: 'status_changed',
+            details: { to_status: newStatus },
+            team_id: TEAM_ID,
+          });
       }
 
       await clearConversationState(chatId.toString(), userId, getSupabase());
@@ -859,14 +916,19 @@ async function handleConversationFlow(
       if (blockErr) {
         await sendMessage(chatId, '❌ Error al bloquear el pedido.');
       } else {
-        await sendMessage(chatId, `🔴 *Pedido bloqueado*\n\nMotivo: ${text.trim()}\n\n⏰ El deadline se extenderá automáticamente mientras esté bloqueado.`);
+        await sendMessage(
+          chatId,
+          `🔴 *Pedido bloqueado*\n\nMotivo: ${escapeMd(text.trim())}\n\n⏰ El deadline se extenderá automáticamente mientras esté bloqueado.`
+        );
 
-        await getSupabase().from('activity_log').insert({
-          request_id: blockedReqId,
-          action: 'blocked',
-          details: { blocked_reason: text.trim() },
-          ...(TEAM_ID && { team_id: TEAM_ID }),
-        });
+        await getSupabase()
+          .from('activity_log')
+          .insert({
+            request_id: blockedReqId,
+            action: 'blocked',
+            details: { blocked_reason: text.trim() },
+            team_id: TEAM_ID,
+          });
       }
 
       await clearConversationState(chatId.toString(), userId, getSupabase());
@@ -879,18 +941,24 @@ async function handleConversationFlow(
       const commentReqIds = commentSelData.requestIds || [];
 
       if (isNaN(commentSelNum) || commentSelNum < 1 || commentSelNum > commentReqIds.length) {
-        await sendMessage(chatId, `⚠️ Por favor responde con un número del 1 al ${commentReqIds.length}.`);
+        await sendMessage(
+          chatId,
+          `⚠️ Por favor responde con un número del 1 al ${commentReqIds.length}.`
+        );
         return;
       }
 
       const commentReqId = commentReqIds[commentSelNum - 1];
 
-      await saveConversationState({
-        chatId: chatId.toString(),
-        userId,
-        step: 'awaiting_comment_text',
-        data: { requestIds: [commentReqId] },
-      }, getSupabase());
+      await saveConversationState(
+        {
+          chatId: chatId.toString(),
+          userId,
+          step: 'awaiting_comment_text',
+          data: { requestIds: [commentReqId] },
+        },
+        getSupabase()
+      );
 
       await sendMessage(chatId, '💬 Escribe tu comentario:');
       break;
@@ -919,7 +987,7 @@ async function handleConversationFlow(
           request_id: commentTargetId,
           user_id: commentUser?.id || null,
           content: text.trim(),
-          ...(TEAM_ID && { team_id: TEAM_ID }),
+          team_id: TEAM_ID,
         });
 
       if (commentErr) {
@@ -928,13 +996,15 @@ async function handleConversationFlow(
         await sendMessage(chatId, '💬 *Comentario agregado!*\n\nSe puede ver en el dashboard.');
 
         // Log activity
-        await getSupabase().from('activity_log').insert({
-          request_id: commentTargetId,
-          user_id: commentUser?.id || null,
-          action: 'commented',
-          details: { comment: text.trim() },
-          ...(TEAM_ID && { team_id: TEAM_ID }),
-        });
+        await getSupabase()
+          .from('activity_log')
+          .insert({
+            request_id: commentTargetId,
+            user_id: commentUser?.id || null,
+            action: 'commented',
+            details: { comment: text.trim() },
+            team_id: TEAM_ID,
+          });
       }
 
       await clearConversationState(chatId.toString(), userId, getSupabase());
@@ -954,9 +1024,7 @@ async function handleCompletarCommand(chatId: number, userId: string) {
     .order('deadline', { ascending: true })
     .limit(10);
 
-  if (TEAM_ID) {
-    completarQuery = completarQuery.eq('team_id', TEAM_ID);
-  }
+  completarQuery = completarQuery.eq('team_id', TEAM_ID);
 
   const { data: requests, error } = await completarQuery;
 
@@ -986,7 +1054,7 @@ async function handleCompletarCommand(chatId: number, userId: string) {
   let message = '📝 *Pedidos activos*\n\nResponde con el número del pedido a completar:\n\n';
   requests.forEach((req: Request, index: number) => {
     const emoji = getPriorityEmoji(req.priority);
-    message += `*${index + 1}.* ${emoji} ${req.client} - ${req.description.substring(0, 40)}${req.description.length > 40 ? '...' : ''}\n`;
+    message += `*${index + 1}.* ${emoji} ${escapeMd(req.client)} - ${escapeMd(req.description.substring(0, 40))}${req.description.length > 40 ? '...' : ''}\n`;
   });
   message += '\nO usa /cancelar para cancelar.';
 
@@ -1003,9 +1071,7 @@ async function handleVerCommand(chatId: number) {
     .in('status', ['pending', 'in_progress'])
     .order('deadline', { ascending: true });
 
-  if (TEAM_ID) {
-    verQuery = verQuery.eq('team_id', TEAM_ID);
-  }
+  verQuery = verQuery.eq('team_id', TEAM_ID);
 
   const { data: requests, error } = await verQuery;
 
@@ -1057,9 +1123,7 @@ async function handleHoyCommand(chatId: number) {
     .select('*')
     .in('status', ['pending', 'in_progress']);
 
-  if (TEAM_ID) {
-    hoyQuery = hoyQuery.eq('team_id', TEAM_ID);
-  }
+  hoyQuery = hoyQuery.eq('team_id', TEAM_ID);
 
   const { data: requests, error } = await hoyQuery;
 
@@ -1097,9 +1161,7 @@ async function handleSemanaCommand(chatId: number) {
     .select('*')
     .in('status', ['pending', 'in_progress']);
 
-  if (TEAM_ID) {
-    semanaQuery = semanaQuery.eq('team_id', TEAM_ID);
-  }
+  semanaQuery = semanaQuery.eq('team_id', TEAM_ID);
 
   const { data: requests, error } = await semanaQuery;
 
@@ -1137,9 +1199,7 @@ async function handleUrgenteCommand(chatId: number) {
     .select('*')
     .in('status', ['pending', 'in_progress']);
 
-  if (TEAM_ID) {
-    urgenteQuery = urgenteQuery.eq('team_id', TEAM_ID);
-  }
+  urgenteQuery = urgenteQuery.eq('team_id', TEAM_ID);
 
   const { data: requests, error } = await urgenteQuery;
 
@@ -1194,28 +1254,22 @@ async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery) {
     if (data === 'view_all') {
       await answerCallbackQuery(callbackQuery.id);
       await handleVerCommand(chatId);
-    }
-    else if (data === 'my_requests') {
+    } else if (data === 'my_requests') {
       await answerCallbackQuery(callbackQuery.id);
       await handleMiosCommand(chatId, user.id);
-    }
-    else if (data === 'urgent') {
+    } else if (data === 'urgent') {
       await answerCallbackQuery(callbackQuery.id);
       await handleUrgenteCommand(chatId);
-    }
-    else if (data === 'today') {
+    } else if (data === 'today') {
       await answerCallbackQuery(callbackQuery.id);
       await handleHoyCommand(chatId);
-    }
-    else if (data === 'week') {
+    } else if (data === 'week') {
       await answerCallbackQuery(callbackQuery.id);
       await handleSemanaCommand(chatId);
-    }
-    else if (data === 'new_request') {
+    } else if (data === 'new_request') {
       await answerCallbackQuery(callbackQuery.id);
       await handleNuevoPedidoCommand(chatId, userId.toString(), user.id);
-    }
-    else if (data.startsWith('complete_')) {
+    } else if (data.startsWith('complete_')) {
       const requestId = data.replace('complete_', '');
 
       // Validar que el requestId sea un UUID válido
@@ -1234,12 +1288,11 @@ async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery) {
         .single();
 
       if (request && messageId) {
-        const confirmMessage = `¿Completar este pedido?\n\n*${request.client}*\n${request.description}`;
+        const confirmMessage = `¿Completar este pedido?\n\n*${escapeMd(request.client)}*\n${escapeMd(request.description)}`;
         const buttons = createCompleteConfirmButtons(requestId);
         await editMessageText(chatId, messageId, confirmMessage, 'Markdown', buttons);
       }
-    }
-    else if (data.startsWith('confirm_complete_')) {
+    } else if (data.startsWith('confirm_complete_')) {
       const requestId = data.replace('confirm_complete_', '');
 
       // Validar UUID
@@ -1265,13 +1318,12 @@ async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery) {
         await editMessageText(
           chatId,
           messageId,
-          `✅ *Pedido completado!*\n\n${updatedRequest.client} - ${updatedRequest.description}\n\n🎉 ¡Buen trabajo!`,
+          `✅ *Pedido completado!*\n\n${escapeMd(updatedRequest.client)} - ${escapeMd(updatedRequest.description)}\n\n🎉 ¡Buen trabajo!`,
           'Markdown',
           createMainMenuButtons()
         );
       }
-    }
-    else if (data.startsWith('details_')) {
+    } else if (data.startsWith('details_')) {
       const requestId = data.replace('details_', '');
 
       // Validar UUID
@@ -1294,8 +1346,7 @@ async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery) {
         const buttons = createRequestButtons(requestId);
         await sendMessageWithButtons(chatId, details, buttons);
       }
-    }
-    else if (data === 'cancel_action') {
+    } else if (data === 'cancel_action') {
       await answerCallbackQuery(callbackQuery.id, 'Cancelado');
       if (messageId) {
         await editMessageText(
@@ -1306,16 +1357,14 @@ async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery) {
           createMainMenuButtons()
         );
       }
-    }
-    else if (data === 'main_menu') {
+    } else if (data === 'main_menu') {
       await answerCallbackQuery(callbackQuery.id);
       await sendMessageWithButtons(
         chatId,
         '📋 *Menú Principal*\n\n¿Qué deseas hacer?',
         createMainMenuButtons()
       );
-    }
-    else if (data?.startsWith('status_')) {
+    } else if (data?.startsWith('status_')) {
       // Handle status change callback from inline buttons
       const parts = data.split('_');
       const newStatus = parts.slice(1, -1).join('_'); // e.g., 'in_progress', 'blocked'
@@ -1324,14 +1373,20 @@ async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery) {
       if (newStatus === 'blocked') {
         // Need to ask for reason via conversation
         const fromUser = callbackQuery.from;
-        await saveConversationState({
-          chatId: chatId.toString(),
-          userId: fromUser.id.toString(),
-          step: 'awaiting_blocked_reason',
-          data: { requestIds: [reqId] },
-        }, getSupabase());
+        await saveConversationState(
+          {
+            chatId: chatId.toString(),
+            userId: fromUser.id.toString(),
+            step: 'awaiting_blocked_reason',
+            data: { requestIds: [reqId] },
+          },
+          getSupabase()
+        );
         await answerCallbackQuery(callbackQuery.id, 'Escribe el motivo del bloqueo');
-        await sendMessage(chatId, '🔴 *Motivo del bloqueo:*\n\nEscribe por qué se bloquea este pedido:');
+        await sendMessage(
+          chatId,
+          '🔴 *Motivo del bloqueo:*\n\nEscribe por qué se bloquea este pedido:'
+        );
       } else {
         const updateFields: Record<string, unknown> = {
           status: newStatus,
@@ -1353,26 +1408,38 @@ async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery) {
           await answerCallbackQuery(callbackQuery.id, '❌ Error', true);
         } else {
           const statusLabelsMap: Record<string, string> = {
-            pending: '⏳ Pendiente', in_progress: '🔵 En Progreso', in_review: '🟣 En Revisión',
-            blocked: '🔴 Bloqueado', needs_revision: '🟠 Necesita Revisión',
-            completed: '✅ Completado', cancelled: '❌ Cancelado',
+            pending: '⏳ Pendiente',
+            in_progress: '🔵 En Progreso',
+            in_review: '🟣 En Revisión',
+            blocked: '🔴 Bloqueado',
+            needs_revision: '🟠 Necesita Revisión',
+            completed: '✅ Completado',
+            cancelled: '❌ Cancelado',
           };
-          await answerCallbackQuery(callbackQuery.id, `Cambiado a ${statusLabelsMap[newStatus] || newStatus}`);
+          await answerCallbackQuery(
+            callbackQuery.id,
+            `Cambiado a ${statusLabelsMap[newStatus] || newStatus}`
+          );
 
           if (messageId) {
-            await editMessageText(chatId, messageId, `✅ Estado cambiado a *${statusLabelsMap[newStatus] || newStatus}*`);
+            await editMessageText(
+              chatId,
+              messageId,
+              `✅ Estado cambiado a *${statusLabelsMap[newStatus] || newStatus}*`
+            );
           }
 
-          await getSupabase().from('activity_log').insert({
-            request_id: reqId,
-            action: 'status_changed',
-            details: { to_status: newStatus },
-            ...(TEAM_ID && { team_id: TEAM_ID }),
-          });
+          await getSupabase()
+            .from('activity_log')
+            .insert({
+              request_id: reqId,
+              action: 'status_changed',
+              details: { to_status: newStatus },
+              team_id: TEAM_ID,
+            });
         }
       }
-    }
-    else {
+    } else {
       await answerCallbackQuery(callbackQuery.id, 'Acción no reconocida');
     }
   } catch (error) {
@@ -1391,9 +1458,7 @@ async function handleEstadoCommand(chatId: number, userId: string) {
     .order('deadline', { ascending: true })
     .limit(10);
 
-  if (TEAM_ID) {
-    query = query.eq('team_id', TEAM_ID);
-  }
+  query = query.eq('team_id', TEAM_ID);
 
   const { data: requests, error } = await query;
 
@@ -1408,24 +1473,30 @@ async function handleEstadoCommand(chatId: number, userId: string) {
   }
 
   const statusLabels: Record<string, string> = {
-    pending: '⏳', in_progress: '🔵', in_review: '🟣',
-    blocked: '🔴', needs_revision: '🟠',
+    pending: '⏳',
+    in_progress: '🔵',
+    in_review: '🟣',
+    blocked: '🔴',
+    needs_revision: '🟠',
   };
 
   let msg = '📋 *Cambiar estado de pedido*\n\nSelecciona el pedido:\n\n';
   requests.forEach((req: Request, i: number) => {
     const emoji = statusLabels[req.status] || '❓';
-    msg += `${i + 1}. ${emoji} *${req.client}* - ${req.description.slice(0, 40)}${req.description.length > 40 ? '...' : ''}\n`;
+    msg += `${i + 1}. ${emoji} *${escapeMd(req.client)}* - ${escapeMd(req.description.slice(0, 40))}${req.description.length > 40 ? '...' : ''}\n`;
   });
   msg += '\nResponde con el número o /cancelar';
 
   const requestIds = requests.map((req: Request) => req.id);
-  await saveConversationState({
-    chatId: chatId.toString(),
-    userId,
-    step: 'awaiting_status_selection',
-    data: { requestIds },
-  }, getSupabase());
+  await saveConversationState(
+    {
+      chatId: chatId.toString(),
+      userId,
+      step: 'awaiting_status_selection',
+      data: { requestIds },
+    },
+    getSupabase()
+  );
 
   await sendMessage(chatId, msg);
 }
@@ -1441,9 +1512,7 @@ async function handleComentarCommand(chatId: number, userId: string) {
     .order('deadline', { ascending: true })
     .limit(10);
 
-  if (TEAM_ID) {
-    query = query.eq('team_id', TEAM_ID);
-  }
+  query = query.eq('team_id', TEAM_ID);
 
   const { data: requests, error } = await query;
 
@@ -1459,17 +1528,20 @@ async function handleComentarCommand(chatId: number, userId: string) {
 
   let msg = '💬 *Agregar comentario*\n\nSelecciona el pedido:\n\n';
   requests.forEach((req: Request, i: number) => {
-    msg += `${i + 1}. *${req.client}* - ${req.description.slice(0, 40)}${req.description.length > 40 ? '...' : ''}\n`;
+    msg += `${i + 1}. *${escapeMd(req.client)}* - ${escapeMd(req.description.slice(0, 40))}${req.description.length > 40 ? '...' : ''}\n`;
   });
   msg += '\nResponde con el número o /cancelar';
 
   const requestIds = requests.map((req: Request) => req.id);
-  await saveConversationState({
-    chatId: chatId.toString(),
-    userId,
-    step: 'awaiting_comment_selection',
-    data: { requestIds },
-  }, getSupabase());
+  await saveConversationState(
+    {
+      chatId: chatId.toString(),
+      userId,
+      step: 'awaiting_comment_selection',
+      data: { requestIds },
+    },
+    getSupabase()
+  );
 
   await sendMessage(chatId, msg);
 }
